@@ -1,52 +1,83 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on 9 setembre 2022
-edició maig 2023:
-- elimina les frases amb xifres
-- comprova que els noms propis no excedeixin 1/3 del total dels tokens
-edició gener 2024:
-- afegida opció d'excloure noms
-- afegits arreglaments apòstrofs
-- canviada estratègia reemplaços
-- torna a calcular num tokens després reemplaços números
-
-@author: carme
-"""
 from optparse import OptionParser
 from sentence_splitter import SentenceSplitter
 import os, sys
-#sys.path.append('/home/carme/Desktop/tasques/commonvoice/filtres/')
-import llegeix_nums_v2 as nums
 import re
 import hunspell
 import unidecode
 from datetime import datetime
 import spacy
-#nlp = spacy.load("en_core_web_sm", enable=["tok2vec", "tagger"])
-nlp = spacy.load("ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"])
 
-cognoms_tots = open("word_lists/cognoms_list.txt", "r").read().splitlines()
-cognoms = []
-for cognom in cognoms_tots:
-    if len(cognom) >= 3:
-        cognoms.append(cognom)
+# import llegeix_nums_v2 as nums
+
+
+def descriu(descriptor, llista, total):
+    text = descriptor + " " + str(len(llista)) + " (" + str(round(len(llista)*100 / total, 2)) + "%)"
+    return text
+
+
+def create_file(path, nom, myfile, mylist):
+    os.makedirs(path, exist_ok=True)
+    newfile = open(path + nom + "_" + myfile, "w")
+    mylist.sort()
+    for frase in mylist:
+        newfile.writelines(frase+"\n")
+    newfile.close()
+
+
+def find_names(line):
+    possibles_noms = re.compile(r"[A-Z][a-ü]+ ([Dd][\'e](l)?)? ?[A-Z][a-ü]*")
+    busca_noms = re.search(possibles_noms, line)
+
+    if  busca_noms != None:
+        possible_nom = busca_noms.group(0)
+        possible_cognom = possible_nom[possible_nom.index(" ")+1:]
+        if unidecode.unidecode(possible_cognom) in cognoms:
+            if busca_noms.span()[0] == 0 and len(busca_noms.group(0).split(" ")[0]) <= 2:
+                return False
+            else:
+                return True
+        else:
+            return False
+    else:
+        return False
+
+
+def fix_quotation_marks(text, cometes):
+        text = re.sub(r"([nldNLD])’(h?[aeiouAEIOUàèéíòóúÀÈÉÍÒÓÚ])", r"\1'\2", text)  # fix apostrophes
+        text = re.sub(r"([aeiouAEIOUàèéíòóú])’([nldNLD])", r"\1'\2", text)  # fix apostrophes
+        text = re.sub(r"([aeiouAEIOUàèéíòóúnldNLD])' (h?[aeiouAEIOUàèéíòóúnldNLD])", r"\1'\2", text)  # fix apostrophes   
+        if text[0] in cometes:
+            if any(cometa in text[1:] for cometa in cometes):
+                pass
+            else:
+                text = text[1:]
+        elif any(cometa in text[1:] for cometa in cometes):
+            countc = 0
+            for c in text[1:]:
+                if c in cometes:
+                    countc += 1
+            if countc % 2 != 0:
+                for c in text[1:]:
+                    if c in cometes:
+                        text = text.replace(c, "")
+        return text
+
 
 def main(argv=None):
     parser = OptionParser()
-    parser.add_option("-f", "--file", dest="file",  action="store", help="fitxer que es vol filtrar", default ="/tmp/un_fitxer.txt")    
-    parser.add_option("-l", "--list", dest="list",  action="store", help="llista de paraules que es volen eliminar", default ="")
-    parser.add_option("-d", "--dir", dest="dir",  action="store", help="directori on es desaran els resultats", default ="")
+    parser.add_option("-f", "--file", dest="file",  action="store", help="fitxer que es vol filtrar")   
+    parser.add_option("-l", "--list", dest="list",  action="store", help="llista de paraules que es volen eliminar")
+    parser.add_option("-d", "--dir", dest="dir",  action="store", help="directori on es desaran els resultats")
     parser.add_option("-x", "--num", dest="num",  action="store_true", help="no es transcriuen els números", default =False)
     parser.add_option("-v", "--verb", dest="verb",  action="store_true", help="només frases amb verbs", default =False)
     parser.add_option("-p", "--punt", dest="punt",  action="store_true", help="només frases amb marques de finals", default =False)
     parser.add_option("-m", "--cap", dest="cap",  action="store_true", help="només frases que comencen amb majúscules", default =False)
     parser.add_option("-n", "--pnom", dest="pnom",  action="store_true", help="exclou frases amb possibles noms propis", default =False)
     
-    (options, args) = parser.parse_args(argv)
+    (options, _) = parser.parse_args(argv)
 
 
-    dic = hunspell.HunSpell('/usr/share/hunspell/ca.dic', '/usr/share/hunspell/ca.aff')
+    dic = hunspell.HunSpell('data/ca.dic', 'data/ca.aff')
         
     file = options.file
     nom = file.split("/")[-1][:-4]  
@@ -75,7 +106,7 @@ def main(argv=None):
         opcions_seleccionades.append(text)
     
     
-    if options.dir != "":
+    if options.dir:
         if options.dir[-1] == "/":
             path = options.dir
         else:
@@ -87,29 +118,12 @@ def main(argv=None):
             oldPath = ""
         path = oldPath + "resulats_filtre_" + nom + "_" + datetime.now().strftime("%Y%m%d_%H%M") + "/"  
     
-    if options.list != "":
-        paraules_excloses =  open(options.list, "r").read().splitlines() # si es volen filtrar algunes paraules
+    if options.list:
+        paraules_excluded =  open(options.list, "r").read().splitlines() # used if the user wishes to filter some words out
     else:
-        paraules_excloses = []
+        paraules_excluded = []
 
     lines = open(file, "r").readlines()
-
-    possibles_noms = re.compile(r"[A-Z][a-ü]+ ([Dd][\'e](l)?)? ?[A-Z][a-ü]*")
-    def troba_noms(line):
-        busca_noms = re.search(possibles_noms, line)                                                           
-        if  busca_noms != None:
-            possible_nom = busca_noms.group(0)
-            possible_cognom = possible_nom[possible_nom.index(" ")+1:]
-            if unidecode.unidecode(possible_cognom) in cognoms:
-                if busca_noms.span()[0] == 0 and len(busca_noms.group(0).split(" ")[0]) <= 2:
-                    return False
-                else:
-                    return True
-            else:
-                return False
-        else:
-            return False
-
         
     splitter = SentenceSplitter(language='ca')
     sentences = []
@@ -119,17 +133,16 @@ def main(argv=None):
         frases = splitter.split(l)
         for frase in frases:
             parts = frase.split(":")
-    #    print(frases)
             sentences.append(parts[-1])
             
-    puntuacio = ["|", "[", "]", "(", ")", "@", "#", "$", "&", "*", "+", "{", "}", "/", "=", "®", ">", "<", "≤", "–", "©"] # caràcters que no volem a les frases
-    nombres = [str(i) for i in range(10)]   # xifres
-    ultim = [".", "!", "?", "\"", "\'"]   # caràcters que indiquen final de frase
+    puntuacio = ["|", "[", "]", "(", ")", "@", "#", "$", "&", "*", "+", "{", "}", "/", "=", "®", ">", "<", "≤", "–", "©"] # characters to exclude from sentences
+    nombres = [str(i) for i in range(10)]   # numbers
+    ultim = [".", "!", "?", "\"", "\'"]   # characters that indicate the end of a sentence
     emojis = re.compile(r'[\u263a-\U0001f645]') # emojis
-    paraula_repetida = re.compile(r"\b(\w+)\b\s+(\1)\b")
-    hores = re.compile(r'[0-2]?[0-9](:|\.)[0-5][0-9](?![0-9])') # hores
-    mal_final = ["els", "el", "la", "les", "a", "en", "de", "que", "què", "mitjançant", "del", "dels", "al", "als", "es", "per", "i", "amb", "hem", "ha", "he", "has", "heu", "qual", "han", "són", "com"]   # paraules que no haurien d'acabar una frase
-    reemplacos = {"’": "'",    # aquests reemplaços es fan al principi 
+    repeated_words = re.compile(r"\b(\w+)\b\s+(\1)\b")
+    hores = re.compile(r'[0-2]?[0-9](:|\.)[0-5][0-9](?![0-9])') # hours
+    mal_final = ["els", "el", "la", "les", "a", "en", "de", "que", "què", "mitjançant", "del", "dels", "al", "als", "es", "per", "i", "amb", "hem", "ha", "he", "has", "heu", "qual", "han", "són", "com"]   # words that should not end a sentence
+    reemplacos = {"’": "'",    # these replacements are done at the beginning 
                 "%": "per cent",
                 "€": "euros",
                 "sr.": "senyor",
@@ -221,78 +234,31 @@ def main(argv=None):
                 "termcat" : "Termcat"
                 }
             
-# aquí hi ha les llistes on es van desant les frases segons si es descarten o no
+    # here are the lists where the sentences are saved depending on whether they are discarded or not
     tokens_descartats = []
     frases_seleccionades = []
     frases_seleccionades_orig = []
     frases_seleccionades_repetides = []
-    excloses_caracter = []
-    excloses_ortografia = []
-    excloses_proporcio = []
-    excloses_mida = []
-    excloses_sigles = []
-    excloses_paraula = []
-    excloses_paraula_repetida = []
-    excloses_nom = []
+    excluded_caracter = []
+    excluded_ortografia = []
+    excluded_proporcio = []
+    excluded_mida = []
+    excluded_sigles = []
+    excluded_paraula = []
+    excluded_repeated_words = []
+    excluded_nom = []
     error_num = []
-    excloses_abreviatura = []
-    excloses_hora = []
+    excluded_abreviatura = []
+    excluded_hora = []
     possibles_trencades = []
     estudi_cas = []
     estudi_cas_ortografia = []
-    excloses_min = []
-    excloses_num = []
-    excloses_verb = []
+    excluded_min = []
+    excluded_num = []
+    excluded_verb = []
 
-    def create_file(myfile, mylist):
-        os.makedirs(path, exist_ok=True)
-        newfile = open(path + nom + "_" + myfile, "w")
-        mylist.sort()
-        for frase in mylist:
-            newfile.writelines(frase+"\n")
-        newfile.close()
-        
-    def tokenizer(line):
-        new_line = re.sub(r'([^A-Za-zÀ-ÿ0-9\.\,·\-])', ' \\1 ', line)
-        new_line = re.sub(r'([sdmtlnSDMTLN]) \'', '\\1\' ', new_line)
-        new_line = re.sub(r'\' ([smtlnSMTLN])', '\'\\1', new_line)
-        new_line = re.sub(r'([^0-9])(\.|,)', '\\1 \\2 ', new_line)
-        new_line = re.sub(r'([0-9])(\.|,)(\D|\Z)', '\\1 \\2 \\3 ', new_line)
-        new_line = re.sub(r'[ ]+', ' ', new_line)
-        trossos = new_line.split(" ")
-        if trossos[0] == '':
-            trossos = trossos[1:]
-        if trossos[-1] == '':
-            trossos = trossos[:-1]
-        return trossos
-    
-    def treu_puntuacio(list):
-        items = [".", ",", "!", ":", "?"]
-        for item in items:
-            while item in list:
-                list.remove(item)
-        return list
 
     cometes = ["‘", "’", "“", "\"", "”", "«", "»"]
-    def arregla_cometes(text):
-        text = re.sub(r"([nldNLD])’(h?[aeiouAEIOUàèéíòóúÀÈÉÍÒÓÚ])", r"\1'\2", text)  # arregla apòstrofs
-        text = re.sub(r"([aeiouAEIOUàèéíòóú])’([nldNLD])", r"\1'\2", text)  # arregla apòstrofs
-        text = re.sub(r"([aeiouAEIOUàèéíòóúnldNLD])' (h?[aeiouAEIOUàèéíòóúnldNLD])", r"\1'\2", text)  # arregla apòstrofs    
-        if text[0] in cometes:
-            if any(cometa in text[1:] for cometa in cometes):
-                pass
-            else:
-                text = text[1:]
-        elif any(cometa in text[1:] for cometa in cometes):
-            countc = 0
-            for c in text[1:]:
-                if c in cometes:
-                    countc += 1
-            if countc % 2 != 0:
-                for c in text[1:]:
-                    if c in cometes:
-                        text = text.replace(c, "")
-        return text
         
 
     for line in sentences:
@@ -302,43 +268,43 @@ def main(argv=None):
         frase_orig = line
         if len(line) > 4:
             if line[0] not in cometes:
-                while not line[0].isalpha() and len(line) > 4:                      # netegem les brossetes a princpi de frase
+                while not line[0].isalpha() and len(line) > 4:                      # clean up the rubbish at the beginning of the sentence
                     line = line[1:]    
 
-            if line[0].islower() and options.cap == True:                           # revisem si comença amb majúscula                 
-                excloses_min.append(frase_orig)  
+            if line[0].islower() and options.cap == True:                           # check if line starts with a capital letter                 
+                excluded_min.append(frase_orig)  
                 exclou_frase = True
             else:                                                                                                                                                       
-                if line[-1] not in ultim and options.punt == True:                  # comprovem que té puntuació de final
+                if line[-1] not in ultim and options.punt == True:                  # check that line has a final score
                     possibles_trencades.append(frase_orig)
                     exclou_frase = True
                 else:      
-                    if re.search(paraula_repetida, line) == None:
-                        if options.pnom == True and troba_noms(line):
+                    if re.search(repeated_words, line) == None:
+                        if options.pnom == True and find_names(line):
                             exclou_frase = True
-                            excloses_nom.append(frase_orig)
+                            excluded_nom.append(frase_orig)
                         else:
-                            line = re.sub(r" \([A-Úa-ú0-9 -\.\,]*\)", "", line)             # netegem el que hi ha entre parèntesis
+                            line = re.sub(r" \([A-Úa-ú0-9 -\.\,]*\)", "", line)             # clean up what's in parentheses
                             if any(element in line for element in puntuacio) == False and re.search(r'\.[a-zA-Z]', line) == None and re.search(emojis, line) == None and line[-1] != ":" and " - " not in line:
-                                                                                            # comprovem que no hi hagi signes de puntuació pel mig, emojis o acabades en :
-                                if re.search(hores, line) == None:                          # comprovem que no hi hagi expressions horàries
+                                                                                            # check that there are no punctuation marks in the middle, emojis or endings in:
+                                if re.search(hores, line) == None:                          # we check that there are no time expressions
                                             
                                     if options.num == True and any(element in line for element in nombres):
-                                                                                            # comprovem si hi ha nombres
-                                        excloses_num.append(frase_orig)
+                                                                                            # check if there are numbers
+                                        excluded_num.append(frase_orig)
                                         exclou_frase = True
                                     else:                          
-                                        trossos = line.split(" ")                           # fem una primera tokenització simple
-                                        if len(trossos) >= 4 and len(trossos) <= 18:        # comptem el número de tokens
-                                            if trossos[-1] not in mal_final:           # comprovem que no acaba malament
-                                                # aquí acaba el primer procés de selecció
-                                                tokens = nlp(line)                          # tokenitzem amb l'spacy
+                                        trossos = line.split(" ")                           # we do a simple first tokenization
+                                        if len(trossos) >= 4 and len(trossos) <= 18:        # count the number of tokens
+                                            if trossos[-1] not in mal_final:           # make sure line doesn't end badly
+                                                # first selection process ends here
+                                                tokens = nlp(line)                          # tokenize with spacy
                                                 te_verb = False
             
                                                 for token in tokens:
                                                     if token.pos_ == "VERB" or token.pos_ == "AUX":
                                                         te_verb = True
-                                                    if token.text.lower() in reemplacos.keys():  # desenvolupem algunes abreviatures
+                                                    if token.text.lower() in reemplacos.keys():  # develop some abbreviations
                                                         line=line.replace(token.text, reemplacos[token.text.lower()])
                                                 
                                                     else:
@@ -346,87 +312,87 @@ def main(argv=None):
                                                             if len(token) == 1:
                                                                 if token.text.lower() in ["a", "e", "i", "o", "u", "l", "d", "p"]:
                                                                     pass
-                                                                else:                        # si és una consonant sola, excloem la frase
+                                                                else:                        # if it is a single consonant, exclude the sentence
                                                                     exclou_frase = True
-                                                                    excloses_ortografia.append(frase_orig)
+                                                                    excluded_ortografia.append(frase_orig)
                                                                     estudi_cas_ortografia.append([frase_orig, token.text])
                                                                     break
-                                                            elif token.text.isupper():       # si és tota majúscula
+                                                            elif token.text.isupper():       
                                                                 exclou_frase = True
-                                                                excloses_sigles.append(frase_orig)
+                                                                excluded_sigles.append(frase_orig)
                                                                 break
-                                                            elif token.text in paraules_excloses:   # si està a la llista de paraules prohibiles, exclou la frase
+                                                            elif token.text in paraules_excluded:   # if it's on the list of forbidden words, exclude the phrase
                                                                 exclou_frase = True
-                                                                excloses_paraula.append(frase_orig)
+                                                                excluded_paraula.append(frase_orig)
                                                                 estudi_cas.append([frase_orig, token.text])
                                                                 break
                                                     
                                                             elif not dic.spell(token.text):
-                                                                if token.text[0].islower() and token.text != "ls": # si no comença amb majúsucula ni està al diccionari, excloem la frase
+                                                                if token.text[0].islower() and token.text != "ls": # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
                                                                     exclou_frase = True
-                                                                    excloses_ortografia.append(frase_orig)
+                                                                    excluded_ortografia.append(frase_orig)
                                                                     estudi_cas_ortografia.append([frase_orig, token.text])
                                                                     tokens_descartats.append(token.text)
                                                                     break
                                                                 elif token.text[0].isupper():
                                                                     count += 1
                                                                                                                         
-                                                        if any(element in token.text for element in nombres):     # si hi ha alguna xifra 
-                                                            try:                              # intentem transcriure-la (si no es volia transcriure, ja s'ha descartat abans)    
+                                                        if any(element in token.text for element in nombres):     # if there is any figure 
+                                                            try:                              # try to transcribe it    
                                                                 transcrip = nums.llegeix_nums(token.text)
                                                                 line = line.replace(token.text, transcrip, 1) 
-                                                            except:                           # si no podem
-                                                                if token.text[-1] == "h":     # mirem si acaba en h i ho tornem a provar
+                                                            except:                           # if we can't
+                                                                if token.text[-1] == "h":     # see if word ends in 'h' and try again
                                                                     try:                      
                                                                         transcrip = nums.llegeix_nums(token.text[:-1]) + " hores"
                                                                         line = line.replace(token.text, transcrip, 1) 
                                                                         
-                                                                    except:                   # si no podem, la descartem
+                                                                    except:                   # if it can't be transcribed, discard it
                                                                         error_num.append(frase_orig)
                                                                         exclou_frase = True
                                                                         break
-                                                                else:                         # si no podem, la maquem com a error
+                                                                else:                         # mark as an error 
                                                                     error_num.append(frase_orig)
                                                                     exclou_frase = True
                                                                     break
-                                                            if exclou_frase == False and len(line.split(" ")) >= 18: # comprovem que la frase no s'hagi fet massa llarga.
-                                                                excloses_mida.append(frase_orig)
+                                                            if exclou_frase == False and len(line.split(" ")) >= 18: # check sentence has not become too long
+                                                                excluded_mida.append(frase_orig)
                                                                 exclou_frase = True
                                                 if count >= len(trossos)/3:
                                                     exclou_frase = True
-                                                    excloses_proporcio.append(frase_orig)    
+                                                    excluded_proporcio.append(frase_orig)    
                                                 else:
-                                                    if te_verb == False and options.verb == True and exclou_frase == False:   # si no té verb i ho hem posat com a requisit i la frase no ha estat eliminada abans, elimina la frase
+                                                    if te_verb == False and options.verb == True and exclou_frase == False:   # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
                                                         exclou_frase = True
-                                                        excloses_verb.append(frase_orig)
+                                                        excluded_verb.append(frase_orig)
                                             else:
                                                 exclou_frase = True
                                                 possibles_trencades.append(frase_orig)
                                         else:
                                             exclou_frase = True
-                                            excloses_mida.append(frase_orig)
+                                            excluded_mida.append(frase_orig)
                                 else:
                                     exclou_frase = True
-                                    excloses_hora.append(frase_orig)
+                                    excluded_hora.append(frase_orig)
                             else:
                                 exclou_frase = True
-                                excloses_caracter.append(frase_orig)
+                                excluded_caracter.append(frase_orig)
                     else:
                         exclou_frase = True
-                        excloses_paraula_repetida.append(frase_orig)
+                        excluded_repeated_words.append(frase_orig)
         else:
             exclou_frase = True
-            excloses_mida.append(frase_orig)
+            excluded_mida.append(frase_orig)
         
         if exclou_frase == False:                                
-            if "." in line[:-2]:                                    # mirem que no hagi quedat cap punt dins la frase
+            if "." in line[:-2]:                                    # check that there is no period left in the sentence
                 if ".." in line:
                     line = re.sub('\.(\.)+', "...", line)
                 else:
                     abreviatura = True
-                    excloses_abreviatura.append(frase_orig)
-            else:                                                   # un cop seleccionades les frases, fem els arreglets
-                line = arregla_cometes(line)
+                    excluded_abreviatura.append(frase_orig)
+            else:                                                   # once the sentences have been selected, make the arrangements
+                line = fix_quotation_marks(line, cometes)
                 if line[-1] not in ultim:
                     if line[-1] == ",":
                         line = line[:-1]
@@ -451,57 +417,49 @@ def main(argv=None):
         print("El directori", path, "ja existeix")
     
             
-
-            
-    # estadistiques
+    # stats
     total = len(sentences)
-
-    def descriu(descriptor, llista):
-        text = descriptor + " " + str(len(llista)) + " (" + str(round(len(llista)*100/total, 2)) + "%)"
-        return text
-
-    estadistiques = ["línies inici: " + str(countl),
+    statistics = ["línies inici: " + str(countl),
             "frases inici: " + str(total),
-            descriu("excloses mida:", excloses_mida),
-            descriu("excloses caracter:", excloses_caracter),
-            descriu("excloses sigles:", excloses_sigles),
-            descriu("excloses paraules:", excloses_paraula),
-            descriu("excloses ortografia:", excloses_ortografia),
-            descriu("excloses proporció:", excloses_proporcio),
-            descriu("excloses hores:", excloses_hora),
-            descriu("excloses paraules repetides:", excloses_paraula_repetida),
-            descriu("excloses noms:", excloses_nom),
-            descriu("seleccionades repetides:", frases_seleccionades_repetides),
-            descriu("seleccionades:", frases_seleccionades),
-            descriu("abreviatures:", excloses_abreviatura),
-            descriu("possibles trencades:", possibles_trencades),
-            descriu("comença amb min:", excloses_min),
-            descriu("conté una xifra:", excloses_num),
-            descriu("excloses verb:", excloses_verb),
-            
-            descriu("error num:", error_num)]
-    for r in estadistiques:
-        print(r)
+            descriu("excloses mida:", excluded_mida, total),
+            descriu("excloses caracter:", excluded_caracter, total),
+            descriu("excloses sigles:", excluded_sigles, total),
+            descriu("excloses paraules:", excluded_paraula, total),
+            descriu("excloses ortografia:", excluded_ortografia, total),
+            descriu("excloses proporció:", excluded_proporcio, total),
+            descriu("excloses hores:", excluded_hora, total),
+            descriu("excloses paraules repetides:", excluded_repeated_words, total),
+            descriu("excloses noms:", excluded_nom, total),
+            descriu("seleccionades repetides:", frases_seleccionades_repetides, total),
+            descriu("seleccionades:", frases_seleccionades, total),
+            descriu("abreviatures:", excluded_abreviatura, total),
+            descriu("possibles trencades:", possibles_trencades, total),
+            descriu("comença amb min:", excluded_min, total),
+            descriu("conté una xifra:", excluded_num, total),
+            descriu("excloses verb:", excluded_verb, total),
+            descriu("error num:", error_num, total)]
+    for line in statistics:
+        print(line)
         
-    create_file("estadistiques_filtre.txt", opcions_seleccionades + ["---------"] + estadistiques)
-    create_file("frases_seleccionades.txt", frases_seleccionades)
-    create_file("excloses_mida.txt", excloses_mida)
-    create_file("excloses_caracter.txt", excloses_caracter)
-    create_file("excloses_sigles.txt", excloses_sigles)
-    create_file("excloses_paraula.txt", excloses_paraula)
-    create_file("excloses_ortografia.txt", excloses_ortografia)
-    create_file("excloses_proporcio.txt", excloses_proporcio)
-    create_file("excloses_hores.txt", excloses_hora)
-    create_file("excloses_paraules_repetides.txt", excloses_paraula_repetida)
-    create_file("excloses_nom.txt", excloses_nom)
-    create_file("frases_seleccionades_repetides.txt", frases_seleccionades_repetides)
-    create_file("error_num.txt", error_num)
-    create_file("possibles_trencades.txt", possibles_trencades)
-    create_file("excloses_abreviatura.txt", excloses_abreviatura)
-    create_file("excloses_minuscula.txt", excloses_min)
-    create_file("excloses_num.txt", excloses_num)
-    create_file("excloses_verb.txt", excloses_verb)
-    create_file("frases_seleccionades_originals.txt", frases_seleccionades_orig)
+    create_file(path, nom, "estadistiques_filtre.txt", opcions_seleccionades + ["---------"] + statistics)
+    create_file(path, nom, "frases_seleccionades.txt", frases_seleccionades)
+    create_file(path, nom, "excloses_mida.txt", excluded_mida)
+    create_file(path, nom, "excloses_caracter.txt", excluded_caracter)
+    create_file(path, nom, "excloses_sigles.txt", excluded_sigles)
+    create_file(path, nom, "excloses_paraula.txt", excluded_paraula)
+    create_file(path, nom, "excloses_ortografia.txt", excluded_ortografia)
+    create_file(path, nom, "excloses_proporcio.txt", excluded_proporcio)
+    create_file(path, nom, "excloses_hores.txt", excluded_hora)
+    create_file(path, nom, "excloses_paraules_repetides.txt", excluded_repeated_words)
+    create_file(path, nom, "excloses_nom.txt", excluded_nom)
+    create_file(path, nom, "frases_seleccionades_repetides.txt", frases_seleccionades_repetides)
+    create_file(path, nom, "error_num.txt", error_num)
+    create_file(path, nom, "possibles_trencades.txt", possibles_trencades)
+    create_file(path, nom, "excloses_abreviatura.txt", excluded_abreviatura)
+    create_file(path, nom, "excloses_minuscula.txt", excluded_min)
+    create_file(path, nom, "excloses_num.txt", excluded_num)
+    create_file(path, nom, "excloses_verb.txt", excluded_verb)
+    create_file(path, nom, "frases_seleccionades_originals.txt", frases_seleccionades_orig)
 
         
 
@@ -516,5 +474,14 @@ def main(argv=None):
         newfile.writelines(frase[1]+"\t"+frase[0]+"\n")
     newfile.close()    
 
+
+
 if __name__ == "__main__":
+    nlp = spacy.load("ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"])
+
+    cognoms_tots = open("data/cognoms_list.txt", "r").read().splitlines()
+    cognoms = []
+    for cognom in cognoms_tots:
+        if len(cognom) >= 3:
+            cognoms.append(cognom)
     sys.exit(main())
