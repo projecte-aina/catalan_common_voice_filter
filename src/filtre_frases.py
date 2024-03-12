@@ -3,6 +3,7 @@ import re
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
+from pathlib import Path
 
 import hunspell
 import spacy
@@ -22,9 +23,9 @@ def descriu(descriptor, llista, total):
     return text
 
 
-def create_file(path, nom, myfile, mylist):
+def create_file(path, filter_file_name, myfile, mylist):
     os.makedirs(path, exist_ok=True)
-    newfile = open(path + nom + "_" + myfile, "w")
+    newfile = open(path + filter_file_name + "_" + myfile, "w")
     mylist.sort()
     for frase in mylist:
         newfile.writelines(frase + "\n")
@@ -84,7 +85,7 @@ def main():
     parser.add_argument(
         "--file",
         "-f",
-        dest="file",
+        dest="file_to_filter",
         action="store",
         help="fitxer que es vol filtrar",
         required=True,
@@ -130,7 +131,7 @@ def main():
     parser.add_argument(
         "--cap",
         "-c",
-        dest="cap",
+        dest="capitals",
         action="store_true",
         help="només frases que comencen amb majúscules",
         default=False,
@@ -147,10 +148,14 @@ def main():
 
     dic = hunspell.HunSpell("data/ca.dic", "data/ca.aff")
 
-    file = args.file
-    nom = file.split("/")[-1][:-4]
+    file_to_filter = Path(args.file_to_filter)
+    filter_file_name = file_to_filter.stem
 
-    opcions_seleccionades = ["* File: " + nom + "\n", "* Opcions seleccionades:"]
+    opcions_seleccionades = [
+        "* File: " + filter_file_name + "\n",
+        "* Opcions seleccionades:",
+    ]
+    print(*opcions_seleccionades)
 
     if args.punctuation == True:
         text = "- Només frases amb marques de finals"
@@ -164,7 +169,7 @@ def main():
         text = "- Només frases amb verbs"
         print(text)
         opcions_seleccionades.append(text)
-    if args.cap == True:
+    if args.capitals == True:
         text = "- Només frases que comencen amb majúscula"
         print(text)
         opcions_seleccionades.append(text)
@@ -179,14 +184,15 @@ def main():
         else:
             path = args.dir + "/"
     else:
-        if "/" in file:
-            oldPath = file[: file.rfind("/")] + "/"
+        if "/" in str(file_to_filter):
+            old_path = file_to_filter.parent
         else:
-            oldPath = ""
+            old_path = ""
         path = (
-            oldPath
+            str(old_path)
+            + "/"
             + "resulats_filtre_"
-            + nom
+            + filter_file_name
             + "_"
             + datetime.now().strftime("%Y%m%d_%H%M")
             + "/"
@@ -199,7 +205,7 @@ def main():
     else:
         paraules_excluded = []
 
-    lines = open(file, "r").readlines()
+    lines = open(file_to_filter, "r").readlines()
 
     splitter = SentenceSplitter(language="ca")
     sentences = []
@@ -398,7 +404,7 @@ def main():
                     line = line[1:]
 
             if (
-                line[0].islower() and args.cap == True
+                line[0].islower() and args.capitals == True
             ):  # check if line starts with a capital letter
                 excluded_min.append(frase_orig)
                 exclou_frase = True
@@ -696,39 +702,54 @@ def main():
 
     create_file(
         path,
-        nom,
+        filter_file_name,
         "estadistiques_filtre.txt",
         opcions_seleccionades + ["---------"] + statistics,
     )
-    create_file(path, nom, "frases_seleccionades.txt", frases_seleccionades)
-    create_file(path, nom, "excloses_mida.txt", excluded_mida)
-    create_file(path, nom, "excloses_caracter.txt", excluded_caracter)
-    create_file(path, nom, "excloses_sigles.txt", excluded_sigles)
-    create_file(path, nom, "excloses_paraula.txt", excluded_paraula)
-    create_file(path, nom, "excloses_ortografia.txt", excluded_ortografia)
-    create_file(path, nom, "excloses_proporcio.txt", excluded_proporcio)
-    create_file(path, nom, "excloses_hores.txt", excluded_hora)
-    create_file(path, nom, "excloses_paraules_repetides.txt", excluded_repeated_words)
-    create_file(path, nom, "excloses_nom.txt", excluded_nom)
     create_file(
-        path, nom, "frases_seleccionades_repetides.txt", frases_seleccionades_repetides
+        path, filter_file_name, "frases_seleccionades.txt", frases_seleccionades
     )
-    create_file(path, nom, "error_num.txt", error_num)
-    create_file(path, nom, "possibles_trencades.txt", possibles_trencades)
-    create_file(path, nom, "excloses_abreviatura.txt", excluded_abreviatura)
-    create_file(path, nom, "excloses_minuscula.txt", excluded_min)
-    create_file(path, nom, "excloses_num.txt", excluded_num)
-    create_file(path, nom, "excloses_verb.txt", excluded_verb)
+    create_file(path, filter_file_name, "excloses_mida.txt", excluded_mida)
+    create_file(path, filter_file_name, "excloses_caracter.txt", excluded_caracter)
+    create_file(path, filter_file_name, "excloses_sigles.txt", excluded_sigles)
+    create_file(path, filter_file_name, "excloses_paraula.txt", excluded_paraula)
+    create_file(path, filter_file_name, "excloses_ortografia.txt", excluded_ortografia)
+    create_file(path, filter_file_name, "excloses_proporcio.txt", excluded_proporcio)
+    create_file(path, filter_file_name, "excloses_hores.txt", excluded_hora)
     create_file(
-        path, nom, "frases_seleccionades_originals.txt", frases_seleccionades_orig
+        path,
+        filter_file_name,
+        "excloses_paraules_repetides.txt",
+        excluded_repeated_words,
+    )
+    create_file(path, filter_file_name, "excloses_nom.txt", excluded_nom)
+    create_file(
+        path,
+        filter_file_name,
+        "frases_seleccionades_repetides.txt",
+        frases_seleccionades_repetides,
+    )
+    create_file(path, filter_file_name, "error_num.txt", error_num)
+    create_file(path, filter_file_name, "possibles_trencades.txt", possibles_trencades)
+    create_file(
+        path, filter_file_name, "excloses_abreviatura.txt", excluded_abreviatura
+    )
+    create_file(path, filter_file_name, "excloses_minuscula.txt", excluded_min)
+    create_file(path, filter_file_name, "excloses_num.txt", excluded_num)
+    create_file(path, filter_file_name, "excloses_verb.txt", excluded_verb)
+    create_file(
+        path,
+        filter_file_name,
+        "frases_seleccionades_originals.txt",
+        frases_seleccionades_orig,
     )
 
-    newfile = open(path + nom + "_" + "estudi_cas_filtre.tsv", "w")
+    newfile = open(path + filter_file_name + "_" + "estudi_cas_filtre.tsv", "w")
     for frase in estudi_cas:
         newfile.writelines(frase[1] + "\t" + frase[0] + "\n")
     newfile.close()
 
-    newfile = open(path + nom + "_" + "estudi_cas_ortografia.tsv", "w")
+    newfile = open(path + filter_file_name + "_" + "estudi_cas_ortografia.tsv", "w")
     for frase in estudi_cas_ortografia:
         newfile.writelines(frase[1] + "\t" + frase[0] + "\n")
     newfile.close()
