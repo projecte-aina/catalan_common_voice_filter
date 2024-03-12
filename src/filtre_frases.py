@@ -1,8 +1,8 @@
 import os
 import re
 import sys
+from argparse import ArgumentParser
 from datetime import datetime
-from optparse import OptionParser
 
 import hunspell
 import spacy
@@ -79,101 +79,105 @@ def fix_quotation_marks(text, cometes):
     return text
 
 
-def main(argv=None):
-    parser = OptionParser()
-    parser.add_option(
-        "-f", "--file", dest="file", action="store", help="fitxer que es vol filtrar"
+def main():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--file",
+        "-f",
+        dest="file",
+        action="store",
+        help="fitxer que es vol filtrar",
+        required=True,
     )
-    parser.add_option(
-        "-l",
+    parser.add_argument(
         "--list",
+        "-l",
         dest="list",
         action="store",
         help="llista de paraules que es volen eliminar",
     )
-    parser.add_option(
-        "-d",
+    parser.add_argument(
         "--dir",
+        "-d",
         dest="dir",
         action="store",
         help="directori on es desaran els resultats",
     )
-    parser.add_option(
-        "-x",
+    parser.add_argument(
         "--num",
-        dest="num",
+        "-n",
+        dest="numbers",
         action="store_true",
         help="no es transcriuen els números",
         default=False,
     )
-    parser.add_option(
-        "-v",
+    parser.add_argument(
         "--verb",
+        "-v",
         dest="verb",
         action="store_true",
         help="només frases amb verbs",
         default=False,
     )
-    parser.add_option(
-        "-p",
+    parser.add_argument(
         "--punt",
-        dest="punt",
+        "-p",
+        dest="punctuation",
         action="store_true",
         help="només frases amb marques de finals",
         default=False,
     )
-    parser.add_option(
-        "-m",
+    parser.add_argument(
         "--cap",
+        "-c",
         dest="cap",
         action="store_true",
         help="només frases que comencen amb majúscules",
         default=False,
     )
-    parser.add_option(
-        "-n",
-        "--pnom",
-        dest="pnom",
+    parser.add_argument(
+        "--noms-propis",
+        "-np",
+        dest="proper_nouns",
         action="store_true",
         help="exclou frases amb possibles noms propis",
         default=False,
     )
-
-    (options, _) = parser.parse_args(argv)
+    args = parser.parse_args()
 
     dic = hunspell.HunSpell("data/ca.dic", "data/ca.aff")
 
-    file = options.file
+    file = args.file
     nom = file.split("/")[-1][:-4]
 
     opcions_seleccionades = ["* File: " + nom + "\n", "* Opcions seleccionades:"]
 
-    if options.punt == True:
+    if args.punctuation == True:
         text = "- Només frases amb marques de finals"
         print(text)
         opcions_seleccionades.append(text)
-    if options.num == True:
+    if args.numbers == True:
         text = "- S'eliminen les frases amb xifres"
         print(text)
         opcions_seleccionades.append(text)
-    if options.verb == True:
+    if args.verb == True:
         text = "- Només frases amb verbs"
         print(text)
         opcions_seleccionades.append(text)
-    if options.cap == True:
+    if args.cap == True:
         text = "- Només frases que comencen amb majúscula"
         print(text)
         opcions_seleccionades.append(text)
-    if options.pnom == True:
+    if args.proper_nouns == True:
         text = "- Exclou frases amb possibles noms"
         print(text)
         opcions_seleccionades.append(text)
 
-    if options.dir:
-        if options.dir[-1] == "/":
-            path = options.dir
+    if args.dir:
+        if args.dir[-1] == "/":
+            path = args.dir
         else:
-            path = options.dir + "/"
+            path = args.dir + "/"
     else:
         if "/" in file:
             oldPath = file[: file.rfind("/")] + "/"
@@ -188,9 +192,9 @@ def main(argv=None):
             + "/"
         )
 
-    if options.list:
+    if args.list:
         paraules_excluded = (
-            open(options.list, "r").read().splitlines()
+            open(args.list, "r").read().splitlines()
         )  # used if the user wishes to filter some words out
     else:
         paraules_excluded = []
@@ -394,19 +398,19 @@ def main(argv=None):
                     line = line[1:]
 
             if (
-                line[0].islower() and options.cap == True
+                line[0].islower() and args.cap == True
             ):  # check if line starts with a capital letter
                 excluded_min.append(frase_orig)
                 exclou_frase = True
             else:
                 if (
-                    line[-1] not in ultim and options.punt == True
+                    line[-1] not in ultim and args.punctuation == True
                 ):  # check that line has a final score
                     possibles_trencades.append(frase_orig)
                     exclou_frase = True
                 else:
                     if re.search(repeated_words, line) == None:
-                        if options.pnom == True and find_names(line):
+                        if args.proper_nouns == True and find_names(line):
                             exclou_frase = True
                             excluded_nom.append(frase_orig)
                         else:
@@ -424,7 +428,7 @@ def main(argv=None):
                                 if (
                                     re.search(hores, line) == None
                                 ):  # we check that there are no time expressions
-                                    if options.num == True and any(
+                                    if args.numbers == True and any(
                                         element in line for element in nombres
                                     ):
                                         # check if there are numbers
@@ -609,7 +613,7 @@ def main(argv=None):
                                                 else:
                                                     if (
                                                         te_verb == False
-                                                        and options.verb == True
+                                                        and args.verb == True
                                                         and exclou_frase == False
                                                     ):  # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
                                                         exclou_frase = True
