@@ -1,9 +1,10 @@
 import os
 import re
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 import hunspell
 import spacy
@@ -80,6 +81,39 @@ def fix_quotation_marks(text, cometes):
     return text
 
 
+def store_and_print_selected_options(
+    args: Namespace, filter_file_name: str
+) -> List[str]:
+    selected_options = [
+        "* File: " + filter_file_name + "\n",
+        "* Opcions seleccionades:",
+    ]
+    print(*selected_options)
+
+    if args.punctuation == True:
+        text = "- Només frases amb marques de finals"
+        print(text)
+        selected_options.append(text)
+    if args.numbers == True:
+        text = "- S'eliminen les frases amb xifres"
+        print(text)
+        selected_options.append(text)
+    if args.verb == True:
+        text = "- Només frases amb verbs"
+        print(text)
+        selected_options.append(text)
+    if args.capitals == True:
+        text = "- Només frases que comencen amb majúscula"
+        print(text)
+        selected_options.append(text)
+    if args.proper_nouns == True:
+        text = "- Exclou frases amb possibles noms"
+        print(text)
+        selected_options.append(text)
+
+    return selected_options
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -151,32 +185,7 @@ def main():
     file_to_filter = Path(args.file_to_filter)
     filter_file_name = file_to_filter.stem
 
-    opcions_seleccionades = [
-        "* File: " + filter_file_name + "\n",
-        "* Opcions seleccionades:",
-    ]
-    print(*opcions_seleccionades)
-
-    if args.punctuation == True:
-        text = "- Només frases amb marques de finals"
-        print(text)
-        opcions_seleccionades.append(text)
-    if args.numbers == True:
-        text = "- S'eliminen les frases amb xifres"
-        print(text)
-        opcions_seleccionades.append(text)
-    if args.verb == True:
-        text = "- Només frases amb verbs"
-        print(text)
-        opcions_seleccionades.append(text)
-    if args.capitals == True:
-        text = "- Només frases que comencen amb majúscula"
-        print(text)
-        opcions_seleccionades.append(text)
-    if args.proper_nouns == True:
-        text = "- Exclou frases amb possibles noms"
-        print(text)
-        opcions_seleccionades.append(text)
+    selected_options = store_and_print_selected_options(args, filter_file_name)
 
     if args.dir:
         if args.dir[-1] == "/":
@@ -704,7 +713,7 @@ def main():
         path,
         filter_file_name,
         "estadistiques_filtre.txt",
-        opcions_seleccionades + ["---------"] + statistics,
+        selected_options + ["---------"] + statistics,
     )
     create_file(
         path, filter_file_name, "frases_seleccionades.txt", frases_seleccionades
