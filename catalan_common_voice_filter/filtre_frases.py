@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import hunspell
 import spacy
@@ -147,6 +147,24 @@ def create_excluded_words_list(excluded_words_list_file: Union[str, None]) -> Li
     return excluded_words
 
 
+def split_filter_file_into_sentences(file_to_filter: Path) -> Tuple[List[str], int]:
+    splitter = SentenceSplitter(language="ca")
+
+    with open(file_to_filter, "r") as f:
+        file_lines = f.readlines()
+
+    sentences = []
+    total_lines = 0
+    for line in file_lines:
+        total_lines += 1
+        phrases = splitter.split(line)
+        for phrase in phrases:
+            parts = phrase.split(":")
+            sentences.append(parts[-1])
+
+    return sentences, total_lines
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -221,18 +239,7 @@ def main():
     selected_options = store_and_print_selected_options(args, filter_file_name)
     output_dir = create_output_directory_path(args.dir, file_to_filter)
     excluded_words = create_excluded_words_list(args.list)
-
-    lines = open(file_to_filter, "r").readlines()
-
-    splitter = SentenceSplitter(language="ca")
-    sentences = []
-    countl = 0
-    for l in lines:
-        countl += 1
-        frases = splitter.split(l)
-        for frase in frases:
-            parts = frase.split(":")
-            sentences.append(parts[-1])
+    sentences, total_lines = split_filter_file_into_sentences(file_to_filter)
 
     # here are the lists where the sentences are saved depending on whether they are discarded or not
     tokens_descartats = []
@@ -547,7 +554,7 @@ def main():
     # stats
     total = len(sentences)
     statistics = [
-        "línies inici: " + str(countl),
+        "línies inici: " + str(total_lines),
         "frases inici: " + str(total),
         descriu("excloses mida:", excluded_mida, total),
         descriu("excloses caracter:", excluded_caracter, total),
