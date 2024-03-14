@@ -4,12 +4,17 @@ import sys
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import hunspell
 import spacy
 import unidecode
 from sentence_splitter import SentenceSplitter
+
+from catalan_common_voice_filter.constants import (
+    EMOJIS, HOURS, INCORRECT_SENTENCE_END_WORDS, NUMBERS,
+    PUNCTUATION_TO_EXCLUDE, QUOTATION_MARKS, REPEATED_WORDS, REPLACEMENT_WORDS,
+    SENTENCE_END_CHARS)
 
 
 def descriu(descriptor, llista, total):
@@ -24,13 +29,14 @@ def descriu(descriptor, llista, total):
     return text
 
 
-def create_file(path, filter_file_name, myfile, mylist):
-    os.makedirs(path, exist_ok=True)
-    newfile = open(path + filter_file_name + "_" + myfile, "w")
+def create_file(output_dir, filter_file_name, myfile, mylist):
     mylist.sort()
-    for frase in mylist:
-        newfile.writelines(frase + "\n")
-    newfile.close()
+
+    os.makedirs(output_dir, exist_ok=True)
+    new_file = output_dir / f"{filter_file_name}_{myfile}"
+    with open(new_file, "w") as f:
+        for frase in mylist:
+            f.writelines(frase + "\n")
 
 
 def find_names(line):
@@ -54,7 +60,7 @@ def find_names(line):
         return False
 
 
-def fix_quotation_marks(text, cometes):
+def fix_quotation_marks(text):
     text = re.sub(
         r"([nldNLD])’(h?[aeiouAEIOUàèéíòóúÀÈÉÍÒÓÚ])", r"\1'\2", text
     )  # fix apostrophes
@@ -64,19 +70,19 @@ def fix_quotation_marks(text, cometes):
     text = re.sub(
         r"([aeiouAEIOUàèéíòóúnldNLD])' (h?[aeiouAEIOUàèéíòóúnldNLD])", r"\1'\2", text
     )  # fix apostrophes
-    if text[0] in cometes:
-        if any(cometa in text[1:] for cometa in cometes):
+    if text[0] in QUOTATION_MARKS:
+        if any(quotation_mark in text[1:] for quotation_mark in QUOTATION_MARKS):
             pass
         else:
             text = text[1:]
-    elif any(cometa in text[1:] for cometa in cometes):
+    elif any(quotation_mark in text[1:] for quotation_mark in QUOTATION_MARKS):
         countc = 0
         for c in text[1:]:
-            if c in cometes:
+            if c in QUOTATION_MARKS:
                 countc += 1
         if countc % 2 != 0:
             for c in text[1:]:
-                if c in cometes:
+                if c in QUOTATION_MARKS:
                     text = text.replace(c, "")
     return text
 
@@ -112,6 +118,26 @@ def store_and_print_selected_options(
         selected_options.append(text)
 
     return selected_options
+
+
+def create_output_directory_path(
+    output_dir: Union[str, None], file_to_filter: Path
+) -> Path:
+    if output_dir:
+        return Path(output_dir)
+
+    now = datetime.now().strftime("%Y%m%d_%H%M")
+    return file_to_filter.parent / f"resulats_filtre_{file_to_filter.stem}_{now}"
+
+
+def create_excluded_words_list(excluded_words_list_file: Union[str, None]) -> List[str]:
+    excluded_words = []
+    if excluded_words_list_file:
+        excluded_words_list_file = Path(excluded_words_list_file)
+        with open(excluded_words_list_file, "r") as f:
+            excluded_words = f.read().splitlines()
+
+    return excluded_words
 
 
 def main():
@@ -186,33 +212,8 @@ def main():
     filter_file_name = file_to_filter.stem
 
     selected_options = store_and_print_selected_options(args, filter_file_name)
-
-    if args.dir:
-        if args.dir[-1] == "/":
-            path = args.dir
-        else:
-            path = args.dir + "/"
-    else:
-        if "/" in str(file_to_filter):
-            old_path = file_to_filter.parent
-        else:
-            old_path = ""
-        path = (
-            str(old_path)
-            + "/"
-            + "resulats_filtre_"
-            + filter_file_name
-            + "_"
-            + datetime.now().strftime("%Y%m%d_%H%M")
-            + "/"
-        )
-
-    if args.list:
-        paraules_excluded = (
-            open(args.list, "r").read().splitlines()
-        )  # used if the user wishes to filter some words out
-    else:
-        paraules_excluded = []
+    output_dir = create_output_directory_path(args.dir, file_to_filter)
+    excluded_words = create_excluded_words_list(args.list)
 
     lines = open(file_to_filter, "r").readlines()
 
@@ -225,156 +226,6 @@ def main():
         for frase in frases:
             parts = frase.split(":")
             sentences.append(parts[-1])
-
-    puntuacio = [
-        "|",
-        "[",
-        "]",
-        "(",
-        ")",
-        "@",
-        "#",
-        "$",
-        "&",
-        "*",
-        "+",
-        "{",
-        "}",
-        "/",
-        "=",
-        "®",
-        ">",
-        "<",
-        "≤",
-        "–",
-        "©",
-    ]  # characters to exclude from sentences
-    nombres = [str(i) for i in range(10)]  # numbers
-    ultim = [".", "!", "?", '"', "'"]  # characters that indicate the end of a sentence
-    emojis = re.compile(r"[\u263a-\U0001f645]")  # emojis
-    repeated_words = re.compile(r"\b(\w+)\b\s+(\1)\b")
-    hores = re.compile(r"[0-2]?[0-9](:|\.)[0-5][0-9](?![0-9])")  # hours
-    mal_final = [
-        "els",
-        "el",
-        "la",
-        "les",
-        "a",
-        "en",
-        "de",
-        "que",
-        "què",
-        "mitjançant",
-        "del",
-        "dels",
-        "al",
-        "als",
-        "es",
-        "per",
-        "i",
-        "amb",
-        "hem",
-        "ha",
-        "he",
-        "has",
-        "heu",
-        "qual",
-        "han",
-        "són",
-        "com",
-    ]  # words that should not end a sentence
-    reemplacos = {
-        "’": "'",  # these replacements are done at the beginning
-        "%": "per cent",
-        "€": "euros",
-        "sr.": "senyor",
-        "dr.": "doctor",
-        "sra.": "senyora",
-        "dra.": "doctora",
-        "st.": "Sant",
-        "sta.": "Santa",
-        "num.": "número ",
-        "núm ": "número ",
-        "núm.": "número",
-        "vol.": "Volum ",
-        "km.": "quilòmetres",
-        "c.": " carrer",  # càrrec
-        "c/": "carrer",
-        "pl.": "plaça ",
-        "Pl.": "Plaça ",
-        "pag.": "pàgina",
-        "pàg.": "pàgina",
-        "p.": " pàgina",
-        "ed.": "editorial",
-        "h.": "hores",
-        "av.": "avinguda",
-        "hable.": "Honorable",
-        "hble.": "honorable",
-        "etc.": "etcètera",
-        "pral.": "principal",
-        "jr.": "júnior",
-        "ptes.": " pessetes",  # aptes
-        "covid-19": "Covid dinou",
-        "ha.": "hectàrees",
-        "veg.": "vegeu",
-        "sr": "senyor",
-        "dr": "doctor",
-        "sra": "senyora",
-        "dra": "doctora",
-        "st": "Sant",
-        "sta": "Santa",
-        "num ": "número ",
-        "núm": "número ",
-        "km": "quilòmetres",
-        "kv": "quilovolts",
-        "kw": "quilowatts",
-        "pag": "pàgina",
-        "pàg": "pàgina",
-        "av": "avinguda",
-        "hable": "Honorable",
-        "hble": "honorable",
-        "ptes": "pessetes",
-        "1r": "primer",
-        "1a": "primera",
-        "2n": "segon",
-        "2a": "segona",
-        "3r": "tercera",
-        "4t": "quart",
-        "4a": "quarta",
-        "5è": "cinquè",
-        "5ena": "cinquena",
-        "iban": "Iban",
-        "ibex": "Ibex",
-        "eeuu": "Estats Units",
-        "eua": "Estats Units",
-        "eu": "Unió Europea",
-        "ue": "Unió Europea",
-        "nie": "Nie",
-        "erc": "Esquerra Republicana de Catalunya",
-        "ciu": "Convergiència i Unió",
-        "psoe": "Partit Socialista Espanyol",
-        "pp": "Partit Popular",
-        "cup": "Cup",
-        "psc": "Partit Socialista de Catalunya",
-        "ccoo": "Comissions Obreres",
-        "ampa": "associació de mares i pares d'alumnes",
-        "ampas": "associacions de mares i pares d'alumnes",
-        "ampes": "associacions de mares i pares d'alumnes",
-        "afas": "associacions de famílies d'alumnes",
-        "afes": "associacions de famílies d'alumnes",
-        "afa": "associació de famílies d'alumnes",
-        "tc": "Tribunal Constitucional",
-        "tsjc": "Tribunal Superior de Justícia de Catalunya",
-        "pimes": "Pime",
-        "pime": "Pime",
-        "led": "led",
-        "unesco": "Unesco",
-        "unicef": "Unicef",
-        "sepa": "Sepa",
-        "erto": "Erto",
-        "dni": "document nacional d'identitat",
-        "termcat": "Termcat",
-    }
 
     # here are the lists where the sentences are saved depending on whether they are discarded or not
     tokens_descartats = []
@@ -399,14 +250,12 @@ def main():
     excluded_num = []
     excluded_verb = []
 
-    cometes = ["‘", "’", "“", '"', "”", "«", "»"]
-
     for line in sentences:
         count = 0
         exclou_frase = False
         frase_orig = line
         if len(line) > 4:
-            if line[0] not in cometes:
+            if line[0] not in QUOTATION_MARKS:
                 while (
                     not line[0].isalpha() and len(line) > 4
                 ):  # clean up the rubbish at the beginning of the sentence
@@ -419,12 +268,12 @@ def main():
                 exclou_frase = True
             else:
                 if (
-                    line[-1] not in ultim and args.punctuation == True
+                    line[-1] not in SENTENCE_END_CHARS and args.punctuation == True
                 ):  # check that line has a final score
                     possibles_trencades.append(frase_orig)
                     exclou_frase = True
                 else:
-                    if re.search(repeated_words, line) == None:
+                    if re.search(REPEATED_WORDS, line) == None:
                         if args.proper_nouns == True and find_names(line):
                             exclou_frase = True
                             excluded_nom.append(frase_orig)
@@ -433,18 +282,22 @@ def main():
                                 r" \([A-Úa-ú0-9 -\.\,]*\)", "", line
                             )  # clean up what's in parentheses
                             if (
-                                any(element in line for element in puntuacio) == False
+                                any(
+                                    element in line
+                                    for element in PUNCTUATION_TO_EXCLUDE
+                                )
+                                == False
                                 and re.search(r"\.[a-zA-Z]", line) == None
-                                and re.search(emojis, line) == None
+                                and re.search(EMOJIS, line) == None
                                 and line[-1] != ":"
                                 and " - " not in line
                             ):
                                 # check that there are no punctuation marks in the middle, emojis or endings in:
                                 if (
-                                    re.search(hores, line) == None
+                                    re.search(HOURS, line) == None
                                 ):  # we check that there are no time expressions
                                     if args.numbers == True and any(
-                                        element in line for element in nombres
+                                        element in line for element in NUMBERS
                                     ):
                                         # check if there are numbers
                                         excluded_num.append(frase_orig)
@@ -457,7 +310,8 @@ def main():
                                             len(trossos) >= 4 and len(trossos) <= 18
                                         ):  # count the number of tokens
                                             if (
-                                                trossos[-1] not in mal_final
+                                                trossos[-1]
+                                                not in INCORRECT_SENTENCE_END_WORDS
                                             ):  # make sure line doesn't end badly
                                                 # first selection process ends here
                                                 tokens = nlp(
@@ -473,11 +327,11 @@ def main():
                                                         te_verb = True
                                                     if (
                                                         token.text.lower()
-                                                        in reemplacos.keys()
+                                                        in REPLACEMENT_WORDS.keys()
                                                     ):  # develop some abbreviations
                                                         line = line.replace(
                                                             token.text,
-                                                            reemplacos[
+                                                            REPLACEMENT_WORDS[
                                                                 token.text.lower()
                                                             ],
                                                         )
@@ -519,7 +373,7 @@ def main():
                                                                 break
                                                             elif (
                                                                 token.text
-                                                                in paraules_excluded
+                                                                in excluded_words
                                                             ):  # if it's on the list of forbidden words, exclude the phrase
                                                                 exclou_frase = True
                                                                 excluded_paraula.append(
@@ -564,7 +418,7 @@ def main():
 
                                                         if any(
                                                             element in token.text
-                                                            for element in nombres
+                                                            for element in NUMBERS
                                                         ):  # if there is any figure
                                                             try:  # try to transcribe it
                                                                 transcrip = (
@@ -659,8 +513,8 @@ def main():
                 else:
                     excluded_abreviatura.append(frase_orig)
             else:  # once the sentences have been selected, make the arrangements
-                line = fix_quotation_marks(line, cometes)
-                if line[-1] not in ultim:
+                line = fix_quotation_marks(line)
+                if line[-1] not in SENTENCE_END_CHARS:
                     if line[-1] == ",":
                         line = line[:-1]
                     line = line + "."
@@ -677,11 +531,11 @@ def main():
                 else:
                     frases_seleccionades_repetides.append(line)
 
-    if not os.path.exists(path):
-        os.mkdir(path)
-        print("Hem creat el directori", path)
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+        print("Hem creat el directori", output_dir)
     else:
-        print("El directori", path, "ja existeix")
+        print("El directori", output_dir, "ja existeix")
 
     # stats
     total = len(sentences)
@@ -710,58 +564,66 @@ def main():
         print(line)
 
     create_file(
-        path,
+        output_dir,
         filter_file_name,
         "estadistiques_filtre.txt",
         selected_options + ["---------"] + statistics,
     )
     create_file(
-        path, filter_file_name, "frases_seleccionades.txt", frases_seleccionades
+        output_dir, filter_file_name, "frases_seleccionades.txt", frases_seleccionades
     )
-    create_file(path, filter_file_name, "excloses_mida.txt", excluded_mida)
-    create_file(path, filter_file_name, "excloses_caracter.txt", excluded_caracter)
-    create_file(path, filter_file_name, "excloses_sigles.txt", excluded_sigles)
-    create_file(path, filter_file_name, "excloses_paraula.txt", excluded_paraula)
-    create_file(path, filter_file_name, "excloses_ortografia.txt", excluded_ortografia)
-    create_file(path, filter_file_name, "excloses_proporcio.txt", excluded_proporcio)
-    create_file(path, filter_file_name, "excloses_hores.txt", excluded_hora)
+    create_file(output_dir, filter_file_name, "excloses_mida.txt", excluded_mida)
     create_file(
-        path,
+        output_dir, filter_file_name, "excloses_caracter.txt", excluded_caracter
+    )
+    create_file(output_dir, filter_file_name, "excloses_sigles.txt", excluded_sigles)
+    create_file(output_dir, filter_file_name, "excloses_paraula.txt", excluded_paraula)
+    create_file(
+        output_dir, filter_file_name, "excloses_ortografia.txt", excluded_ortografia
+    )
+    create_file(
+        output_dir, filter_file_name, "excloses_proporcio.txt", excluded_proporcio
+    )
+    create_file(output_dir, filter_file_name, "excloses_hores.txt", excluded_hora)
+    create_file(
+        output_dir,
         filter_file_name,
         "excloses_paraules_repetides.txt",
         excluded_repeated_words,
     )
-    create_file(path, filter_file_name, "excloses_nom.txt", excluded_nom)
+    create_file(output_dir, filter_file_name, "excloses_nom.txt", excluded_nom)
     create_file(
-        path,
+        output_dir,
         filter_file_name,
         "frases_seleccionades_repetides.txt",
         frases_seleccionades_repetides,
     )
-    create_file(path, filter_file_name, "error_num.txt", error_num)
-    create_file(path, filter_file_name, "possibles_trencades.txt", possibles_trencades)
+    create_file(output_dir, filter_file_name, "error_num.txt", error_num)
     create_file(
-        path, filter_file_name, "excloses_abreviatura.txt", excluded_abreviatura
+        output_dir, filter_file_name, "possibles_trencades.txt", possibles_trencades
     )
-    create_file(path, filter_file_name, "excloses_minuscula.txt", excluded_min)
-    create_file(path, filter_file_name, "excloses_num.txt", excluded_num)
-    create_file(path, filter_file_name, "excloses_verb.txt", excluded_verb)
     create_file(
-        path,
+        output_dir, filter_file_name, "excloses_abreviatura.txt", excluded_abreviatura
+    )
+    create_file(output_dir, filter_file_name, "excloses_minuscula.txt", excluded_min)
+    create_file(output_dir, filter_file_name, "excloses_num.txt", excluded_num)
+    create_file(output_dir, filter_file_name, "excloses_verb.txt", excluded_verb)
+    create_file(
+        output_dir,
         filter_file_name,
         "frases_seleccionades_originals.txt",
         frases_seleccionades_orig,
     )
 
-    newfile = open(path + filter_file_name + "_" + "estudi_cas_filtre.tsv", "w")
-    for frase in estudi_cas:
-        newfile.writelines(frase[1] + "\t" + frase[0] + "\n")
-    newfile.close()
+    new_file = output_dir / f"{filter_file_name}_estudi_cas_filtre.tsv"
+    with open(new_file, "w") as f:
+        for frase in estudi_cas:
+            f.writelines(frase[1] + "\t" + frase[0] + "\n")
 
-    newfile = open(path + filter_file_name + "_" + "estudi_cas_ortografia.tsv", "w")
-    for frase in estudi_cas_ortografia:
-        newfile.writelines(frase[1] + "\t" + frase[0] + "\n")
-    newfile.close()
+    new_file = output_dir / f"{filter_file_name}_estudi_cas_ortografia.tsv"
+    with open(new_file, "w") as f:
+        for frase in estudi_cas_ortografia:
+            f.writelines(frase[1] + "\t" + frase[0] + "\n")
 
 
 if __name__ == "__main__":
