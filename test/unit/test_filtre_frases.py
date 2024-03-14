@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from catalan_common_voice_filter.filtre_frases import (
+    check_if_line_starts_with_lowercase_letter,
     create_output_directory_path,
     remove_unnecessary_characters,
     store_and_print_selected_options,
@@ -92,3 +93,28 @@ def test_remove_unnecessary_characters(text, expected):
     line = remove_unnecessary_characters(text)
 
     assert line == expected
+
+
+@pytest.mark.parametrize(
+    "text,only_allow_capitalized_sentences,expected",
+    [
+        (
+            "els catalans coneixem Mark Twain",
+            True,
+            (["els catalans coneixem Mark Twain"], True),
+        ),
+        ("els catalans coneixem Mark Twain", False, ([], False)),
+        ("Els catalans coneixem Mark Twain", True, ([], False)),
+        ("Els catalans coneixem Mark Twain", False, ([], False)),
+    ],
+)
+def test_check_if_line_starts_with_lowercase_letter(
+    text, only_allow_capitalized_sentences, expected
+):
+    excluded_min = []
+    excluded_min, exclude_phrase = check_if_line_starts_with_lowercase_letter(
+        text, text, only_allow_capitalized_sentences, excluded_min
+    )
+
+    assert excluded_min == expected[0]
+    assert exclude_phrase == expected[1]
