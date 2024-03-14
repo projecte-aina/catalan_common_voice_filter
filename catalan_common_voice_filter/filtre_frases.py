@@ -165,6 +165,19 @@ def split_filter_file_into_sentences(file_to_filter: Path) -> Tuple[List[str], i
     return sentences, total_lines
 
 
+def is_line_length_correct(line: str) -> bool:
+    return len(line) > 4
+
+
+def remove_unnecessary_characters(line: str) -> str:
+    first_char = line[0]
+    if first_char not in QUOTATION_MARKS:
+        while is_line_length_correct(line) and not line[0].isalpha():
+            line = line[1:]
+
+    return line
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -249,7 +262,7 @@ def main():
     excluded_characters = []
     excluded_spellings = []
     excluded_ratios = []
-    excluded_sentences_too_long = []
+    excluded_sentences_improper_length = []
     excluded_acronyms = []
     excluded_words = []
     excluded_repeated_words = []
@@ -266,31 +279,26 @@ def main():
 
     for line in sentences:
         count = 0
-        exclou_frase = False
-        frase_orig = line
-        if len(line) > 4:
-            if line[0] not in QUOTATION_MARKS:
-                while (
-                    not line[0].isalpha() and len(line) > 4
-                ):  # clean up the rubbish at the beginning of the sentence
-                    line = line[1:]
-
+        exclude_phrase = False
+        original_phrase = line
+        if is_line_length_correct(line):
+            line = remove_unnecessary_characters(line)
             if (
                 line[0].islower() and args.capitals == True
             ):  # check if line starts with a capital letter
-                excluded_min.append(frase_orig)
-                exclou_frase = True
+                excluded_min.append(original_phrase)
+                exclude_phrase = True
             else:
                 if (
                     line[-1] not in SENTENCE_END_CHARS and args.punctuation == True
                 ):  # check that line has a final score
-                    possible_breaks.append(frase_orig)
-                    exclou_frase = True
+                    possible_breaks.append(original_phrase)
+                    exclude_phrase = True
                 else:
                     if re.search(REPEATED_WORDS, line) == None:
                         if args.proper_nouns == True and find_names(line):
-                            exclou_frase = True
-                            excluded_names.append(frase_orig)
+                            exclude_phrase = True
+                            excluded_names.append(original_phrase)
                         else:
                             line = re.sub(
                                 r" \([A-Úa-ú0-9 -\.\,]*\)", "", line
@@ -314,8 +322,8 @@ def main():
                                         element in line for element in NUMBERS
                                     ):
                                         # check if there are numbers
-                                        excluded_num.append(frase_orig)
-                                        exclou_frase = True
+                                        excluded_num.append(original_phrase)
+                                        exclude_phrase = True
                                     else:
                                         trossos = line.split(
                                             " "
@@ -368,34 +376,36 @@ def main():
                                                                 ):
                                                                     pass
                                                                 else:  # if it is a single consonant, exclude the sentence
-                                                                    exclou_frase = True
+                                                                    exclude_phrase = (
+                                                                        True
+                                                                    )
                                                                     excluded_spellings.append(
-                                                                        frase_orig
+                                                                        original_phrase
                                                                     )
                                                                     spelling_case_studies.append(
                                                                         [
-                                                                            frase_orig,
+                                                                            original_phrase,
                                                                             token.text,
                                                                         ]
                                                                     )
                                                                     break
                                                             elif token.text.isupper():
-                                                                exclou_frase = True
+                                                                exclude_phrase = True
                                                                 excluded_acronyms.append(
-                                                                    frase_orig
+                                                                    original_phrase
                                                                 )
                                                                 break
                                                             elif (
                                                                 token.text
                                                                 in words_to_exclude
                                                             ):  # if it's on the list of forbidden words, exclude the phrase
-                                                                exclou_frase = True
+                                                                exclude_phrase = True
                                                                 excluded_words.append(
-                                                                    frase_orig
+                                                                    original_phrase
                                                                 )
                                                                 case_studies.append(
                                                                     [
-                                                                        frase_orig,
+                                                                        original_phrase,
                                                                         token.text,
                                                                     ]
                                                                 )
@@ -411,13 +421,15 @@ def main():
                                                                     and token.text
                                                                     != "ls"
                                                                 ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
-                                                                    exclou_frase = True
+                                                                    exclude_phrase = (
+                                                                        True
+                                                                    )
                                                                     excluded_spellings.append(
-                                                                        frase_orig
+                                                                        original_phrase
                                                                     )
                                                                     spelling_case_studies.append(
                                                                         [
-                                                                            frase_orig,
+                                                                            original_phrase,
                                                                             token.text,
                                                                         ]
                                                                     )
@@ -467,67 +479,71 @@ def main():
 
                                                                     except:  # if it can't be transcribed, discard it
                                                                         error_num.append(
-                                                                            frase_orig
+                                                                            original_phrase
                                                                         )
-                                                                        exclou_frase = (
+                                                                        exclude_phrase = (
                                                                             True
                                                                         )
                                                                         break
                                                                 else:  # mark as an error
                                                                     error_num.append(
-                                                                        frase_orig
+                                                                        original_phrase
                                                                     )
-                                                                    exclou_frase = True
+                                                                    exclude_phrase = (
+                                                                        True
+                                                                    )
                                                                     break
                                                             if (
-                                                                exclou_frase == False
+                                                                exclude_phrase == False
                                                                 and len(line.split(" "))
                                                                 >= 18
                                                             ):  # check sentence has not become too long
-                                                                excluded_sentences_too_long.append(
-                                                                    frase_orig
+                                                                excluded_sentences_improper_length.append(
+                                                                    original_phrase
                                                                 )
-                                                                exclou_frase = True
+                                                                exclude_phrase = True
                                                 if count >= len(trossos) / 3:
-                                                    exclou_frase = True
-                                                    excluded_ratios.append(frase_orig)
+                                                    exclude_phrase = True
+                                                    excluded_ratios.append(
+                                                        original_phrase
+                                                    )
                                                 else:
                                                     if (
                                                         te_verb == False
                                                         and args.verb == True
-                                                        and exclou_frase == False
+                                                        and exclude_phrase == False
                                                     ):  # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
-                                                        exclou_frase = True
+                                                        exclude_phrase = True
                                                         excluded_verbs.append(
-                                                            frase_orig
+                                                            original_phrase
                                                         )
                                             else:
-                                                exclou_frase = True
-                                                possible_breaks.append(frase_orig)
+                                                exclude_phrase = True
+                                                possible_breaks.append(original_phrase)
                                         else:
-                                            exclou_frase = True
-                                            excluded_sentences_too_long.append(
-                                                frase_orig
+                                            exclude_phrase = True
+                                            excluded_sentences_improper_length.append(
+                                                original_phrase
                                             )
                                 else:
-                                    exclou_frase = True
-                                    excluded_hours.append(frase_orig)
+                                    exclude_phrase = True
+                                    excluded_hours.append(original_phrase)
                             else:
-                                exclou_frase = True
-                                excluded_characters.append(frase_orig)
+                                exclude_phrase = True
+                                excluded_characters.append(original_phrase)
                     else:
-                        exclou_frase = True
-                        excluded_repeated_words.append(frase_orig)
+                        exclude_phrase = True
+                        excluded_repeated_words.append(original_phrase)
         else:
-            exclou_frase = True
-            excluded_sentences_too_long.append(frase_orig)
+            exclude_phrase = True
+            excluded_sentences_improper_length.append(original_phrase)
 
-        if exclou_frase == False:
+        if exclude_phrase == False:
             if "." in line[:-2]:  # check that there is no period left in the sentence
                 if ".." in line:
                     line = re.sub("\.(\.)+", "...", line)
                 else:
-                    excluded_abbreviations.append(frase_orig)
+                    excluded_abbreviations.append(original_phrase)
             else:  # once the sentences have been selected, make the arrangements
                 line = fix_quotation_marks(line)
                 if line[-1] not in SENTENCE_END_CHARS:
@@ -543,7 +559,7 @@ def main():
                     line = line[0].upper() + line[1:]
                 if line not in selected_phrases:
                     selected_phrases.append(line)
-                    selected_phrases_orig.append(frase_orig)
+                    selected_phrases_orig.append(original_phrase)
                 else:
                     selected_phrases_repeated.append(line)
 
@@ -558,7 +574,7 @@ def main():
     statistics = [
         "línies inici: " + str(total_lines),
         "frases inici: " + str(total),
-        descriu("excloses mida:", excluded_sentences_too_long, total),
+        descriu("excloses mida:", excluded_sentences_improper_length, total),
         descriu("excloses caracter:", excluded_characters, total),
         descriu("excloses sigles:", excluded_acronyms, total),
         descriu("excloses paraules:", excluded_words, total),
@@ -589,7 +605,10 @@ def main():
         output_dir, filter_file_name, "frases_seleccionades.txt", selected_phrases
     )
     create_file(
-        output_dir, filter_file_name, "excloses_mida.txt", excluded_sentences_too_long
+        output_dir,
+        filter_file_name,
+        "excloses_mida.txt",
+        excluded_sentences_improper_length,
     )
     create_file(
         output_dir, filter_file_name, "excloses_caracter.txt", excluded_characters

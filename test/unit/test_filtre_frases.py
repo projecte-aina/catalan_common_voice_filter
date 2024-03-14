@@ -4,7 +4,10 @@ from pathlib import Path
 import pytest
 
 from catalan_common_voice_filter.filtre_frases import (
-    create_output_directory_path, store_and_print_selected_options)
+    create_output_directory_path,
+    remove_unnecessary_characters,
+    store_and_print_selected_options,
+)
 
 
 @pytest.fixture
@@ -74,3 +77,18 @@ def test_create_output_directory_path_without_specified_directory():
     output_dir = create_output_directory_path(None, file_to_filter)
     assert output_dir.parent == file_to_filter.parent
     assert file_to_filter.stem in str(output_dir)
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("%$/>&!!Els catalans coneixem Mark Twain", "Els catalans coneixem Mark Twain"),
+        ("Els catalans coneixem Mark Twain", "Els catalans coneixem Mark Twain"),
+        ("«Els catalans coneixem Mark Twain»", "«Els catalans coneixem Mark Twain»"),
+        ("/>@#$", ">@#$"),
+    ],
+)
+def test_remove_unnecessary_characters(text, expected):
+    line = remove_unnecessary_characters(text)
+
+    assert line == expected
