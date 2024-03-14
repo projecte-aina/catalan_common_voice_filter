@@ -12,9 +12,16 @@ import unidecode
 from sentence_splitter import SentenceSplitter
 
 from catalan_common_voice_filter.constants import (
-    EMOJIS, HOURS, INCORRECT_SENTENCE_END_WORDS, NUMBERS,
-    PUNCTUATION_TO_EXCLUDE, QUOTATION_MARKS, REPEATED_WORDS, REPLACEMENT_WORDS,
-    SENTENCE_END_CHARS)
+    EMOJIS,
+    HOURS,
+    INCORRECT_SENTENCE_END_WORDS,
+    NUMBERS,
+    PUNCTUATION_TO_EXCLUDE,
+    QUOTATION_MARKS,
+    REPEATED_WORDS,
+    REPLACEMENT_WORDS,
+    SENTENCE_END_CHARS,
+)
 
 
 def descriu(descriptor, llista, total):
