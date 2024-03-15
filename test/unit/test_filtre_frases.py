@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from catalan_common_voice_filter.filtre_frases import (
+    check_if_line_ends_with_punctuation,
     check_if_line_starts_with_lowercase_letter,
     create_output_directory_path,
     remove_unnecessary_characters,
@@ -112,9 +113,30 @@ def test_check_if_line_starts_with_lowercase_letter(
     text, only_allow_capitalized_sentences, expected
 ):
     excluded_min = []
+    exclude_phrase = False
     excluded_min, exclude_phrase = check_if_line_starts_with_lowercase_letter(
-        text, text, only_allow_capitalized_sentences, excluded_min
+        text, text, only_allow_capitalized_sentences, excluded_min, exclude_phrase
     )
 
     assert excluded_min == expected[0]
+    assert exclude_phrase == expected[1]
+
+
+@pytest.mark.parametrize(
+    "text,only_allow_punctuation,expected",
+    [
+        ("Parla amb la Marta de Lopez", True, (["Parla amb la Marta de Lopez"], True)),
+        ("Parla amb la Marta de Lopez.", True, ([], False)),
+        ("Parla amb la Marta de Lopez", False, ([], False)),
+        ("Parla amb la Marta de Lopez.", False, ([], False)),
+    ],
+)
+def test_check_if_line_ends_with_punctuation(text, only_allow_punctuation, expected):
+    possible_breaks = []
+    exclude_phrase = False
+    possible_breaks, exclude_phrase = check_if_line_ends_with_punctuation(
+        text, text, only_allow_punctuation, possible_breaks, exclude_phrase
+    )
+
+    assert possible_breaks == expected[0]
     assert exclude_phrase == expected[1]
