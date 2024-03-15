@@ -6,8 +6,10 @@ import pytest
 from catalan_common_voice_filter.filtre_frases import (
     are_words_repeated,
     check_if_line_ends_with_punctuation,
+    check_if_line_is_a_name,
     check_if_line_starts_with_lowercase_letter,
     create_output_directory_path,
+    is_name,
     remove_unnecessary_characters,
     store_and_print_selected_options,
 )
@@ -156,3 +158,45 @@ def test_are_words_repeated(text, expected):
     result = are_words_repeated(text)
 
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,surnames,expected",
+    [
+        ("Raul de Santos", ["Bibi", "Company", "de Santos"], True),
+        ("Marco Del Pino", ["Bibi", "Company", "de Santos"], False),
+        ("Marco Del Pino", ["Bibi", "Del Pino", "de Santos"], True),
+        ("P Zhu", ["Bibi", "Zhu", "de Santos"], False),
+        ("Raul Gines", ["Bibi", "Gines", "de Santos"], True),
+    ],
+)
+def test_is_name(text, surnames, expected):
+    result = is_name(text, surnames)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,surnames,exclude_proper_nouns,expected",
+    [
+        (
+            "Raul de Santos",
+            ["Bibi", "Company", "de Santos"],
+            True,
+            (["Raul de Santos"], True),
+        ),
+        ("Not a name", ["Bibi", "Company", "de Santos"], True, ([], False)),
+        ("Raul de Santos", ["Bibi", "Company", "de Santos"], False, ([], False)),
+        ("Not a name", ["Bibi", "Company", "de Santos"], False, ([], False)),
+    ],
+)
+def test_check_if_line_is_a_name(text, surnames, exclude_proper_nouns, expected):
+    excluded_names = []
+    exclude_phrase = False
+
+    excluded_names, exclude_phrase = check_if_line_is_a_name(
+        text, text, exclude_proper_nouns, surnames, excluded_names, exclude_phrase
+    )
+
+    assert excluded_names == expected[0]
+    assert exclude_phrase == expected[1]
