@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from catalan_common_voice_filter.filtre_frases import (
+    are_words_repeated,
     check_if_line_ends_with_punctuation,
     check_if_line_starts_with_lowercase_letter,
     create_output_directory_path,
@@ -140,3 +141,18 @@ def test_check_if_line_ends_with_punctuation(text, only_allow_punctuation, expec
 
     assert possible_breaks == expected[0]
     assert exclude_phrase == expected[1]
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Parla Parla", True),
+        ("Parla parla", True),
+        ("Parla amb amb la Marta de Lopez", True),
+        ("Parla amb la Marta de Lopez", False),
+    ],
+)
+def test_are_words_repeated(text, expected):
+    result = are_words_repeated(text)
+
+    assert result == expected
