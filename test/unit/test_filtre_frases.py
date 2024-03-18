@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from catalan_common_voice_filter.filtre_frases import (
+    are_excluded_characters_in_line,
     are_words_repeated,
     check_if_line_ends_with_punctuation,
     check_if_line_is_a_name,
@@ -200,3 +201,18 @@ def test_check_if_line_is_a_name(text, surnames, exclude_proper_nouns, expected)
 
     assert excluded_names == expected[0]
     assert exclude_phrase == expected[1]
+
+
+@pytest.mark.parametrize(
+    "line,expected",
+    [
+        ("T|e$t Phr@s#", True),
+        (".test", True),
+        ("Test:", True),
+        ("Test - Line", True),
+        ("Test line", False),
+    ],
+)
+def test_excluded_numbers_in_line(line, expected):
+    result = are_excluded_characters_in_line(line)
+    assert result == expected
