@@ -6,6 +6,7 @@ import pytest
 from catalan_common_voice_filter.filtre_frases import (
     add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true,
     are_excluded_characters_in_line,
+    are_time_expressions_in_line,
     are_words_repeated,
     create_output_directory_path,
     is_name,
@@ -204,4 +205,19 @@ def test_is_name(text, surnames, expected):
 )
 def test_excluded_numbers_in_line(line, expected):
     result = are_excluded_characters_in_line(line)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("The meeting will be at 11:30 am tomorrow", True),
+        ("The meeting will be at 15:00 tomorrow", True),
+        ("The meeting will be at 15.30 tomorrow", True),
+        ("The meeting will be tomorrow morning", False),
+    ],
+)
+def test_are_time_expressions_in_line(text, expected):
+    result = are_time_expressions_in_line(text)
+
     assert result == expected
