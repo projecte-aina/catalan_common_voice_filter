@@ -4,13 +4,13 @@ from pathlib import Path
 import pytest
 
 from catalan_common_voice_filter.filtre_frases import (
+    add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true,
     are_excluded_characters_in_line,
     are_words_repeated,
-    check_if_line_ends_with_punctuation,
-    check_if_line_is_a_name,
-    check_if_line_starts_with_lowercase_letter,
     create_output_directory_path,
     is_name,
+    line_ends_with_punctuation,
+    line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
     store_and_print_selected_options,
 )
@@ -69,6 +69,34 @@ def test_store_and_print_selected_options_with_some_options(some_args):
     assert "- Exclou frases amb possibles noms" not in selected_options
 
 
+@pytest.mark.parametrize(
+    "text,exclusion_list,expected",
+    [
+        ("Test line", [], ["Test line"]),
+        (
+            "Test line",
+            ["Existing phrase 1", "Existing phrase 2"],
+            ["Existing phrase 1", "Existing phrase 2", "Test line"],
+        ),
+    ],
+)
+def test_add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+    text, exclusion_list, expected
+):
+    exclude_phrase = False
+    (
+        exclusion_list,
+        exclude_phrase,
+    ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+        text, exclusion_list, exclude_phrase
+    )
+
+    assert len(exclusion_list) == len(expected)
+    assert "Test line" in expected
+
+    assert exclude_phrase == True
+
+
 def test_create_output_directory_path_with_specified_directory():
     results_dir = "path/to/results"
     file_to_filter = Path("test_filter_file.txt")
@@ -101,49 +129,35 @@ def test_remove_unnecessary_characters(text, expected):
 
 
 @pytest.mark.parametrize(
-    "text,only_allow_capitalized_sentences,expected",
+    "text,expected",
     [
         (
             "els catalans coneixem Mark Twain",
             True,
-            (["els catalans coneixem Mark Twain"], True),
         ),
-        ("els catalans coneixem Mark Twain", False, ([], False)),
-        ("Els catalans coneixem Mark Twain", True, ([], False)),
-        ("Els catalans coneixem Mark Twain", False, ([], False)),
+        ("Els catalans coneixem Mark Twain", False),
     ],
 )
-def test_check_if_line_starts_with_lowercase_letter(
-    text, only_allow_capitalized_sentences, expected
-):
-    excluded_min = []
-    exclude_phrase = False
-    excluded_min, exclude_phrase = check_if_line_starts_with_lowercase_letter(
-        text, text, only_allow_capitalized_sentences, excluded_min, exclude_phrase
-    )
-
-    assert excluded_min == expected[0]
-    assert exclude_phrase == expected[1]
+def test_line_starts_with_lowercase_letter(text, expected):
+    result = line_starts_with_lowercase_letter(text)
+    assert result == expected
 
 
 @pytest.mark.parametrize(
-    "text,only_allow_punctuation,expected",
+    "text,expected",
     [
-        ("Parla amb la Marta de Lopez", True, (["Parla amb la Marta de Lopez"], True)),
-        ("Parla amb la Marta de Lopez.", True, ([], False)),
-        ("Parla amb la Marta de Lopez", False, ([], False)),
-        ("Parla amb la Marta de Lopez.", False, ([], False)),
+        ("Parla amb la Marta de Lopez", False),
+        ("Parla amb la Marta de Lopez.", True),
+        ("Parla amb la Marta de Lopez!", True),
+        ("Parla amb la Marta de Lopez?", True),
+        ("'Parla amb la Marta de Lopez'", True),
+        ('"Parla amb la Marta de Lopez?"', True),
     ],
 )
-def test_check_if_line_ends_with_punctuation(text, only_allow_punctuation, expected):
-    possible_breaks = []
-    exclude_phrase = False
-    possible_breaks, exclude_phrase = check_if_line_ends_with_punctuation(
-        text, text, only_allow_punctuation, possible_breaks, exclude_phrase
-    )
+def test_line_ends_with_punctuation(text, expected):
+    result = line_ends_with_punctuation(text)
 
-    assert possible_breaks == expected[0]
-    assert exclude_phrase == expected[1]
+    assert result == expected
 
 
 @pytest.mark.parametrize(
@@ -169,38 +183,13 @@ def test_are_words_repeated(text, expected):
         ("Marco Del Pino", ["Bibi", "Del Pino", "de Santos"], True),
         ("P Zhu", ["Bibi", "Zhu", "de Santos"], False),
         ("Raul Gines", ["Bibi", "Gines", "de Santos"], True),
+        ("Not a name", ["Bibi", "Gines", "de Santos"], False),
     ],
 )
 def test_is_name(text, surnames, expected):
     result = is_name(text, surnames)
 
     assert result == expected
-
-
-@pytest.mark.parametrize(
-    "text,surnames,exclude_proper_nouns,expected",
-    [
-        (
-            "Raul de Santos",
-            ["Bibi", "Company", "de Santos"],
-            True,
-            (["Raul de Santos"], True),
-        ),
-        ("Not a name", ["Bibi", "Company", "de Santos"], True, ([], False)),
-        ("Raul de Santos", ["Bibi", "Company", "de Santos"], False, ([], False)),
-        ("Not a name", ["Bibi", "Company", "de Santos"], False, ([], False)),
-    ],
-)
-def test_check_if_line_is_a_name(text, surnames, exclude_proper_nouns, expected):
-    excluded_names = []
-    exclude_phrase = False
-
-    excluded_names, exclude_phrase = check_if_line_is_a_name(
-        text, text, exclude_proper_nouns, surnames, excluded_names, exclude_phrase
-    )
-
-    assert excluded_names == expected[0]
-    assert exclude_phrase == expected[1]
 
 
 @pytest.mark.parametrize(
