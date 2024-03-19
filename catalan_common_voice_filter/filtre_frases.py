@@ -256,6 +256,10 @@ def is_correct_number_of_tokens(tokens: List[str]) -> bool:
     return len(tokens) > 3 and len(tokens) < 19
 
 
+def sentence_ends_incorrectly(tokens: List[str]) -> bool:
+    return tokens[-1] in INCORRECT_SENTENCE_END_WORDS
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -446,131 +450,133 @@ def main():
             )
             continue
 
-        if (
-            tokens[-1] not in INCORRECT_SENTENCE_END_WORDS
-        ):  # make sure line doesn't end badly
-            # first selection process ends here
-            tokens = nlp(line)  # tokenize with spacy
-            te_verb = False
+        if sentence_ends_incorrectly(tokens):
+            (
+                possible_breaks,
+                exclude_phrase,
+            ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                original_phrase, possible_breaks, exclude_phrase
+            )
+            continue
 
-            for token in tokens:
-                if token.pos_ == "VERB" or token.pos_ == "AUX":
-                    te_verb = True
-                if (
-                    token.text.lower() in REPLACEMENT_WORDS.keys()
-                ):  # develop some abbreviations
-                    line = line.replace(
-                        token.text,
-                        REPLACEMENT_WORDS[token.text.lower()],
-                    )
+        tokens = nlp(line)  # tokenize with spacy
+        te_verb = False
 
-                else:
-                    if token.text.isalpha():
-                        if len(token) == 1:
-                            if token.text.lower() in [
-                                "a",
-                                "e",
-                                "i",
-                                "o",
-                                "u",
-                                "l",
-                                "d",
-                                "p",
-                            ]:
-                                pass
-                            else:  # if it is a single consonant, exclude the sentence
-                                exclude_phrase = True
-                                excluded_spellings.append(original_phrase)
-                                spelling_case_studies.append(
-                                    [
-                                        original_phrase,
-                                        token.text,
-                                    ]
-                                )
-                                break
-                        elif token.text.isupper():
+        for token in tokens:
+            if token.pos_ == "VERB" or token.pos_ == "AUX":
+                te_verb = True
+            if (
+                token.text.lower() in REPLACEMENT_WORDS.keys()
+            ):  # develop some abbreviations
+                line = line.replace(
+                    token.text,
+                    REPLACEMENT_WORDS[token.text.lower()],
+                )
+
+            else:
+                if token.text.isalpha():
+                    if len(token) == 1:
+                        if token.text.lower() in [
+                            "a",
+                            "e",
+                            "i",
+                            "o",
+                            "u",
+                            "l",
+                            "d",
+                            "p",
+                        ]:
+                            pass
+                        else:  # if it is a single consonant, exclude the sentence
                             exclude_phrase = True
-                            excluded_acronyms.append(original_phrase)
-                            break
-                        elif (
-                            token.text in words_to_exclude
-                        ):  # if it's on the list of forbidden words, exclude the phrase
-                            exclude_phrase = True
-                            excluded_words.append(original_phrase)
-                            case_studies.append(
+                            excluded_spellings.append(original_phrase)
+                            spelling_case_studies.append(
                                 [
                                     original_phrase,
                                     token.text,
                                 ]
                             )
                             break
-
-                        elif not dic.spell(token.text):
-                            if (
-                                token.text[0].islower() and token.text != "ls"
-                            ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
-                                exclude_phrase = True
-                                excluded_spellings.append(original_phrase)
-                                spelling_case_studies.append(
-                                    [
-                                        original_phrase,
-                                        token.text,
-                                    ]
-                                )
-                                discarded_tokens.append(token.text)
-                                break
-                            elif token.text[0].isupper():
-                                count += 1
-
-                    if any(
-                        element in token.text for element in NUMBERS
-                    ):  # if there is any figure
-                        try:  # try to transcribe it
-                            transcrip = nums.llegeix_nums(token.text)
-                            line = line.replace(
+                    elif token.text.isupper():
+                        exclude_phrase = True
+                        excluded_acronyms.append(original_phrase)
+                        break
+                    elif (
+                        token.text in words_to_exclude
+                    ):  # if it's on the list of forbidden words, exclude the phrase
+                        exclude_phrase = True
+                        excluded_words.append(original_phrase)
+                        case_studies.append(
+                            [
+                                original_phrase,
                                 token.text,
-                                transcrip,
-                                1,
-                            )
-                        except:  # if we can't
-                            if (
-                                token.text[-1] == "h"
-                            ):  # see if word ends in 'h' and try again
-                                try:
-                                    transcrip = (
-                                        nums.llegeix_nums(token.text[:-1]) + " hores"
-                                    )
-                                    line = line.replace(
-                                        token.text,
-                                        transcrip,
-                                        1,
-                                    )
+                            ]
+                        )
+                        break
 
-                                except:  # if it can't be transcribed, discard it
-                                    error_num.append(original_phrase)
-                                    exclude_phrase = True
-                                    break
-                            else:  # mark as an error
+                    elif not dic.spell(token.text):
+                        if (
+                            token.text[0].islower() and token.text != "ls"
+                        ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
+                            exclude_phrase = True
+                            excluded_spellings.append(original_phrase)
+                            spelling_case_studies.append(
+                                [
+                                    original_phrase,
+                                    token.text,
+                                ]
+                            )
+                            discarded_tokens.append(token.text)
+                            break
+                        elif token.text[0].isupper():
+                            count += 1
+
+                if any(
+                    element in token.text for element in NUMBERS
+                ):  # if there is any figure
+                    try:  # try to transcribe it
+                        transcrip = nums.llegeix_nums(token.text)
+                        line = line.replace(
+                            token.text,
+                            transcrip,
+                            1,
+                        )
+                    except:  # if we can't
+                        if (
+                            token.text[-1] == "h"
+                        ):  # see if word ends in 'h' and try again
+                            try:
+                                transcrip = (
+                                    nums.llegeix_nums(token.text[:-1]) + " hores"
+                                )
+                                line = line.replace(
+                                    token.text,
+                                    transcrip,
+                                    1,
+                                )
+
+                            except:  # if it can't be transcribed, discard it
                                 error_num.append(original_phrase)
                                 exclude_phrase = True
                                 break
-                        if (
-                            exclude_phrase == False and len(line.split(" ")) >= 18
-                        ):  # check sentence has not become too long
-                            excluded_sentences_improper_length.append(original_phrase)
+                        else:  # mark as an error
+                            error_num.append(original_phrase)
                             exclude_phrase = True
-            if count >= len(tokens) / 3:
-                exclude_phrase = True
-                excluded_ratios.append(original_phrase)
-            else:
-                if (
-                    te_verb == False and args.verb == True and exclude_phrase == False
-                ):  # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
-                    exclude_phrase = True
-                    excluded_verbs.append(original_phrase)
-        else:
+                            break
+                    if (
+                        exclude_phrase == False and len(line.split(" ")) >= 18
+                    ):  # check sentence has not become too long
+                        excluded_sentences_improper_length.append(original_phrase)
+                        exclude_phrase = True
+        if count >= len(tokens) / 3:
             exclude_phrase = True
-            possible_breaks.append(original_phrase)
+            excluded_ratios.append(original_phrase)
+        else:
+            if (
+                te_verb == False and args.verb == True and exclude_phrase == False
+            ):  # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
+                exclude_phrase = True
+                excluded_verbs.append(original_phrase)
 
         if exclude_phrase == False:
             if "." in line[:-2]:  # check that there is no period left in the sentence

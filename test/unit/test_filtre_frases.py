@@ -15,6 +15,7 @@ from catalan_common_voice_filter.filtre_frases import (
     line_ends_with_punctuation,
     line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
+    sentence_ends_incorrectly,
     store_and_print_selected_options,
 )
 
@@ -271,5 +272,18 @@ def test_are_numbers_in_line(text, expected):
 )
 def test_is_correct_number_of_tokens(tokens, expected):
     result = is_correct_number_of_tokens(tokens)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "tokens,expected",
+    [
+        (["Els", "catalans", "coneixem", "amb"], True),
+        (["La", "Maria", "Marieta", "canta", "i", "balla", "al" "matí"], False),
+    ],
+)
+def test_sentence_ends_incorrectly(tokens, expected):
+    result = sentence_ends_incorrectly(tokens)
 
     assert result == expected
