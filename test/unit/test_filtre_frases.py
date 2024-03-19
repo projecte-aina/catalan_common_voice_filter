@@ -6,6 +6,7 @@ import pytest
 from catalan_common_voice_filter.filtre_frases import (
     add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true,
     are_excluded_characters_in_line,
+    are_numbers_in_line,
     are_time_expressions_in_line,
     are_words_repeated,
     create_output_directory_path,
@@ -94,7 +95,6 @@ def test_add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
 
     assert len(exclusion_list) == len(expected)
     assert "Test line" in expected
-
     assert exclude_phrase == True
 
 
@@ -141,6 +141,7 @@ def test_remove_unnecessary_characters(text, expected):
 )
 def test_line_starts_with_lowercase_letter(text, expected):
     result = line_starts_with_lowercase_letter(text)
+
     assert result == expected
 
 
@@ -205,6 +206,7 @@ def test_is_name(text, surnames, expected):
 )
 def test_excluded_numbers_in_line(line, expected):
     result = are_excluded_characters_in_line(line)
+
     assert result == expected
 
 
@@ -219,5 +221,15 @@ def test_excluded_numbers_in_line(line, expected):
 )
 def test_are_time_expressions_in_line(text, expected):
     result = are_time_expressions_in_line(text)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [("T3st Phr4S3", True), ("Test Phrase 3405942", True), ("Test phrase", False)],
+)
+def test_are_numbers_in_line(text, expected):
+    result = are_numbers_in_line(text)
 
     assert result == expected
