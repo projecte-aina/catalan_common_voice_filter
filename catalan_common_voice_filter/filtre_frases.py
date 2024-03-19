@@ -275,6 +275,10 @@ def replace_abbreviations(token: Token, line: str) -> str:
     return line
 
 
+def is_valid_single_letter_token(token: str) -> bool:
+    return token in ["a", "e", "i", "o", "u", "l", "d", "p"]
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -484,31 +488,29 @@ def main():
             line = replace_abbreviations(token, line)
 
             if token.text.isalpha():
-                if len(token) == 1:
-                    if token.text.lower() in [
-                        "a",
-                        "e",
-                        "i",
-                        "o",
-                        "u",
-                        "l",
-                        "d",
-                        "p",
-                    ]:
-                        pass
-                    else:  # if it is a single consonant, exclude the sentence
-                        exclude_phrase = True
-                        excluded_spellings.append(original_phrase)
-                        spelling_case_studies.append(
-                            [
-                                original_phrase,
-                                token.text,
-                            ]
-                        )
-                        break
-                elif token.text.isupper():
-                    exclude_phrase = True
-                    excluded_acronyms.append(original_phrase)
+                if len(token) == 1 and not is_valid_single_letter_token(
+                    token.text.lower()
+                ):
+                    (
+                        excluded_spellings,
+                        exclude_phrase,
+                    ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                        original_phrase, excluded_spellings, exclude_phrase
+                    )
+                    spelling_case_studies.append(
+                        [
+                            original_phrase,
+                            token.text,
+                        ]
+                    )
+                    break
+                if len(token) == 1 and token.text.isupper():
+                    (
+                        excluded_acronyms,
+                        exclude_phrase,
+                    ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                        original_phrase, excluded_acronyms, exclude_phrase
+                    )
                     break
                 elif (
                     token.text in words_to_exclude

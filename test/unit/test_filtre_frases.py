@@ -14,6 +14,7 @@ from catalan_common_voice_filter.filtre_frases import (
     is_correct_number_of_tokens,
     is_name,
     is_token_a_verb,
+    is_valid_single_letter_token,
     line_ends_with_punctuation,
     line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
@@ -334,3 +335,10 @@ def test_replace_abbreviations(text, expected, spacy_tokenizer):
         text = replace_abbreviations(token, text)
 
     assert text == expected
+
+
+@pytest.mark.parametrize("text,expected", [("a", True), ("i", True), ("s", False)])
+def test_is_valid_single_letter_token(text, expected):
+    result = is_valid_single_letter_token(text)
+
+    assert result == expected
