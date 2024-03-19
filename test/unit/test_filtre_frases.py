@@ -206,7 +206,7 @@ def test_is_name(text, surnames, expected):
         ("Test line", False),
     ],
 )
-def test_excluded_numbers_in_line(line, expected):
+def test_excluded_characters_in_line(line, expected):
     result = are_excluded_characters_in_line(line)
 
     assert result == expected
