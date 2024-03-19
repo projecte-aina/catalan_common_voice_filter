@@ -10,6 +10,7 @@ from catalan_common_voice_filter.filtre_frases import (
     are_time_expressions_in_line,
     are_words_repeated,
     create_output_directory_path,
+    is_correct_number_of_tokens,
     is_name,
     line_ends_with_punctuation,
     line_starts_with_lowercase_letter,
@@ -231,5 +232,44 @@ def test_are_time_expressions_in_line(text, expected):
 )
 def test_are_numbers_in_line(text, expected):
     result = are_numbers_in_line(text)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "tokens,expected",
+    [
+        (["Bon", "dia"], False),
+        (["Bon", "dia", "tingui"], False),
+        (
+            [
+                "Els",
+                "catalans",
+                "coneixem",
+                "Mark",
+                "Twain",
+                "sobretot",
+                "gràcies",
+                "a",
+                "Les",
+                "aventures",
+                "de",
+                "Tom",
+                "Sawyer",
+                "i",
+                "Les",
+                "aventures",
+                "de",
+                "Huckleberry",
+                "Finn",
+                "novel·les",
+            ],
+            False,
+        ),
+        (["Els", "catalans", "coneixem", "Mark", "Twain"], True),
+    ],
+)
+def test_is_correct_number_of_tokens(tokens, expected):
+    result = is_correct_number_of_tokens(tokens)
 
     assert result == expected
