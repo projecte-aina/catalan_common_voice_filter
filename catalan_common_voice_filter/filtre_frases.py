@@ -10,6 +10,7 @@ import hunspell
 import spacy
 import unidecode
 from sentence_splitter import SentenceSplitter
+from spacy.tokens.token import Token
 
 from catalan_common_voice_filter.constants import (
     EMOJIS,
@@ -260,6 +261,20 @@ def sentence_ends_incorrectly(tokens: List[str]) -> bool:
     return tokens[-1] in INCORRECT_SENTENCE_END_WORDS
 
 
+def is_token_a_verb(token: Token) -> bool:
+    return token.pos_ == "VERB" or token.pos_ == "AUX"
+
+
+def replace_abbreviations(token: Token, line: str) -> str:
+    if token.text.lower() in REPLACEMENT_WORDS.keys():
+        line = line.replace(
+            token.text,
+            REPLACEMENT_WORDS[token.text.lower()],
+        )
+
+    return line
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -327,7 +342,7 @@ def main():
     args = parser.parse_args()
 
     dic = hunspell.HunSpell("data/ca.dic", "data/ca.aff")
-    nlp = spacy.load(
+    spacy_tokenizer = spacy.load(
         "ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"]
     )
     surnames = get_surname_list()
@@ -459,121 +474,113 @@ def main():
             )
             continue
 
-        tokens = nlp(line)  # tokenize with spacy
-        te_verb = False
+        tokens = spacy_tokenizer(line)
+        verb_token_present = False
 
         for token in tokens:
-            if token.pos_ == "VERB" or token.pos_ == "AUX":
-                te_verb = True
-            if (
-                token.text.lower() in REPLACEMENT_WORDS.keys()
-            ):  # develop some abbreviations
-                line = line.replace(
-                    token.text,
-                    REPLACEMENT_WORDS[token.text.lower()],
-                )
+            if is_token_a_verb(token):
+                verb_token_present = True
 
-            else:
-                if token.text.isalpha():
-                    if len(token) == 1:
-                        if token.text.lower() in [
-                            "a",
-                            "e",
-                            "i",
-                            "o",
-                            "u",
-                            "l",
-                            "d",
-                            "p",
-                        ]:
-                            pass
-                        else:  # if it is a single consonant, exclude the sentence
-                            exclude_phrase = True
-                            excluded_spellings.append(original_phrase)
-                            spelling_case_studies.append(
-                                [
-                                    original_phrase,
-                                    token.text,
-                                ]
-                            )
-                            break
-                    elif token.text.isupper():
+            line = replace_abbreviations(token, line)
+
+            if token.text.isalpha():
+                if len(token) == 1:
+                    if token.text.lower() in [
+                        "a",
+                        "e",
+                        "i",
+                        "o",
+                        "u",
+                        "l",
+                        "d",
+                        "p",
+                    ]:
+                        pass
+                    else:  # if it is a single consonant, exclude the sentence
                         exclude_phrase = True
-                        excluded_acronyms.append(original_phrase)
-                        break
-                    elif (
-                        token.text in words_to_exclude
-                    ):  # if it's on the list of forbidden words, exclude the phrase
-                        exclude_phrase = True
-                        excluded_words.append(original_phrase)
-                        case_studies.append(
+                        excluded_spellings.append(original_phrase)
+                        spelling_case_studies.append(
                             [
                                 original_phrase,
                                 token.text,
                             ]
                         )
                         break
-
-                    elif not dic.spell(token.text):
-                        if (
-                            token.text[0].islower() and token.text != "ls"
-                        ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
-                            exclude_phrase = True
-                            excluded_spellings.append(original_phrase)
-                            spelling_case_studies.append(
-                                [
-                                    original_phrase,
-                                    token.text,
-                                ]
-                            )
-                            discarded_tokens.append(token.text)
-                            break
-                        elif token.text[0].isupper():
-                            count += 1
-
-                if any(
-                    element in token.text for element in NUMBERS
-                ):  # if there is any figure
-                    try:  # try to transcribe it
-                        transcrip = nums.llegeix_nums(token.text)
-                        line = line.replace(
+                elif token.text.isupper():
+                    exclude_phrase = True
+                    excluded_acronyms.append(original_phrase)
+                    break
+                elif (
+                    token.text in words_to_exclude
+                ):  # if it's on the list of forbidden words, exclude the phrase
+                    exclude_phrase = True
+                    excluded_words.append(original_phrase)
+                    case_studies.append(
+                        [
+                            original_phrase,
                             token.text,
-                            transcrip,
-                            1,
-                        )
-                    except:  # if we can't
-                        if (
-                            token.text[-1] == "h"
-                        ):  # see if word ends in 'h' and try again
-                            try:
-                                transcrip = (
-                                    nums.llegeix_nums(token.text[:-1]) + " hores"
-                                )
-                                line = line.replace(
-                                    token.text,
-                                    transcrip,
-                                    1,
-                                )
+                        ]
+                    )
+                    break
 
-                            except:  # if it can't be transcribed, discard it
-                                error_num.append(original_phrase)
-                                exclude_phrase = True
-                                break
-                        else:  # mark as an error
+                elif not dic.spell(token.text):
+                    if (
+                        token.text[0].islower() and token.text != "ls"
+                    ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
+                        exclude_phrase = True
+                        excluded_spellings.append(original_phrase)
+                        spelling_case_studies.append(
+                            [
+                                original_phrase,
+                                token.text,
+                            ]
+                        )
+                        discarded_tokens.append(token.text)
+                        break
+                    elif token.text[0].isupper():
+                        count += 1
+
+            if any(
+                element in token.text for element in NUMBERS
+            ):  # if there is any figure
+                try:  # try to transcribe it
+                    transcrip = nums.llegeix_nums(token.text)
+                    line = line.replace(
+                        token.text,
+                        transcrip,
+                        1,
+                    )
+                except:  # if we can't
+                    if token.text[-1] == "h":  # see if word ends in 'h' and try again
+                        try:
+                            transcrip = nums.llegeix_nums(token.text[:-1]) + " hores"
+                            line = line.replace(
+                                token.text,
+                                transcrip,
+                                1,
+                            )
+
+                        except:  # if it can't be transcribed, discard it
                             error_num.append(original_phrase)
                             exclude_phrase = True
                             break
-                    if (
-                        exclude_phrase == False and len(line.split(" ")) >= 18
-                    ):  # check sentence has not become too long
-                        excluded_sentences_improper_length.append(original_phrase)
+                    else:  # mark as an error
+                        error_num.append(original_phrase)
                         exclude_phrase = True
+                        break
+                if (
+                    exclude_phrase == False and len(line.split(" ")) >= 18
+                ):  # check sentence has not become too long
+                    excluded_sentences_improper_length.append(original_phrase)
+                    exclude_phrase = True
         if count >= len(tokens) / 3:
             exclude_phrase = True
             excluded_ratios.append(original_phrase)
         else:
             if (
-                te_verb == False and args.verb == True and exclude_phrase == False
+                verb_token_present == False
+                and args.verb == True
+                and exclude_phrase == False
             ):  # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
                 exclude_phrase = True
                 excluded_verbs.append(original_phrase)

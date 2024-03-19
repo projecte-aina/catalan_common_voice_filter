@@ -2,6 +2,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import pytest
+import spacy
 
 from catalan_common_voice_filter.filtre_frases import (
     add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true,
@@ -12,9 +13,11 @@ from catalan_common_voice_filter.filtre_frases import (
     create_output_directory_path,
     is_correct_number_of_tokens,
     is_name,
+    is_token_a_verb,
     line_ends_with_punctuation,
     line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
+    replace_abbreviations,
     sentence_ends_incorrectly,
     store_and_print_selected_options,
 )
@@ -44,6 +47,13 @@ def some_args():
     )
     args = Namespace(**selected_args)
     return args
+
+
+@pytest.fixture
+def spacy_tokenizer():
+    return spacy.load(
+        "ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"]
+    )
 
 
 def test_store_and_print_selected_options_with_all_options(all_args):
@@ -287,3 +297,40 @@ def test_sentence_ends_incorrectly(tokens, expected):
     result = sentence_ends_incorrectly(tokens)
 
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "line,expected",
+    [
+        ("agrada", True),
+        ("ha", True),
+        ("alemany", False),
+    ],
+)
+def test_is_token_a_verb(line, expected, spacy_tokenizer):
+    tokens = spacy_tokenizer(line)
+    for token in tokens:
+        result = is_token_a_verb(token)
+
+        assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("DNI", "document nacional d'identitat"),
+        ("sra", "senyora"),
+        ("Bon dia tingui, dra Maria.", "Bon dia tingui, doctora Maria."),
+        ("Bon dia tingui, Sr. Felip.", "Bon dia tingui, senyor Felip."),
+        (
+            "M'agrada mirar-te als ulls, m'hi ofegaria.",
+            "M'agrada mirar-te als ulls, m'hi ofegaria.",
+        ),
+    ],
+)
+def test_replace_abbreviations(text, expected, spacy_tokenizer):
+    tokens = spacy_tokenizer(text)
+    for token in tokens:
+        text = replace_abbreviations(token, text)
+
+    assert text == expected
