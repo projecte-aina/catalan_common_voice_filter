@@ -504,7 +504,8 @@ def main():
                         ]
                     )
                     break
-                if len(token) == 1 and token.text.isupper():
+
+                if token.text.isupper():
                     (
                         excluded_acronyms,
                         exclude_phrase,
@@ -512,11 +513,14 @@ def main():
                         original_phrase, excluded_acronyms, exclude_phrase
                     )
                     break
-                elif (
-                    token.text in words_to_exclude
-                ):  # if it's on the list of forbidden words, exclude the phrase
-                    exclude_phrase = True
-                    excluded_words.append(original_phrase)
+
+                if token.text in words_to_exclude:
+                    (
+                        excluded_words,
+                        exclude_phrase,
+                    ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                        original_phrase, excluded_words, exclude_phrase
+                    )
                     case_studies.append(
                         [
                             original_phrase,
@@ -525,7 +529,7 @@ def main():
                     )
                     break
 
-                elif not dic.spell(token.text):
+                if not dic.spell(token.text):
                     if (
                         token.text[0].islower() and token.text != "ls"
                     ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
@@ -539,7 +543,8 @@ def main():
                         )
                         discarded_tokens.append(token.text)
                         break
-                    elif token.text[0].isupper():
+
+                    if token.text[0].isupper():
                         count += 1
 
             if any(
