@@ -21,6 +21,7 @@ from catalan_common_voice_filter.filtre_frases import (
     replace_abbreviations,
     sentence_ends_incorrectly,
     store_and_print_selected_options,
+    token_starts_with_lowercase_letter_and_is_not_a_pronoun,
 )
 
 
@@ -338,7 +339,27 @@ def test_replace_abbreviations(text, expected, spacy_tokenizer):
 
 
 @pytest.mark.parametrize("text,expected", [("a", True), ("i", True), ("s", False)])
-def test_is_valid_single_letter_token(text, expected):
-    result = is_valid_single_letter_token(text)
+def test_is_valid_single_letter_token(text, expected, spacy_tokenizer):
+    tokens = spacy_tokenizer(text)
+    for token in tokens:
+        result = is_valid_single_letter_token(token)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("test", True),
+        ("ls", False),
+        ("Test", False),
+    ],
+)
+def test_token_starts_with_lowercase_letter_and_is_not_a_pronoun(
+    text, expected, spacy_tokenizer
+):
+    tokens = spacy_tokenizer(text)
+    for token in tokens:
+        result = token_starts_with_lowercase_letter_and_is_not_a_pronoun(token)
 
     assert result == expected

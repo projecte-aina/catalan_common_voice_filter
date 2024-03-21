@@ -275,8 +275,12 @@ def replace_abbreviations(token: Token, line: str) -> str:
     return line
 
 
-def is_valid_single_letter_token(token: str) -> bool:
-    return token in ["a", "e", "i", "o", "u", "l", "d", "p"]
+def is_valid_single_letter_token(token: Token) -> bool:
+    return token.text.lower() in ["a", "e", "i", "o", "u", "l", "d", "p"]
+
+
+def token_starts_with_lowercase_letter_and_is_not_a_pronoun(token: Token) -> bool:
+    return token.text[0].islower() and token.text != "ls"
 
 
 def main():
@@ -488,9 +492,7 @@ def main():
             line = replace_abbreviations(token, line)
 
             if token.text.isalpha():
-                if len(token) == 1 and not is_valid_single_letter_token(
-                    token.text.lower()
-                ):
+                if len(token) == 1 and not is_valid_single_letter_token(token):
                     (
                         excluded_spellings,
                         exclude_phrase,
@@ -530,18 +532,25 @@ def main():
                     break
 
                 if not dic.spell(token.text):
-                    if (
-                        token.text[0].islower() and token.text != "ls"
-                    ):  # if it doesn't start with a capital letter and isn't in the dictionary, we exclude the phrase
-                        exclude_phrase = True
-                        excluded_spellings.append(original_phrase)
+                    if token_starts_with_lowercase_letter_and_is_not_a_pronoun(token):
+                        (
+                            excluded_spellings,
+                            exclude_phrase,
+                        ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                            original_phrase, excluded_spellings, exclude_phrase
+                        )
                         spelling_case_studies.append(
                             [
                                 original_phrase,
                                 token.text,
                             ]
                         )
-                        discarded_tokens.append(token.text)
+                        (
+                            discarded_tokens,
+                            exclude_phrase,
+                        ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                            token.text, discarded_tokens, exclude_phrase
+                        )
                         break
 
                     if token.text[0].isupper():
