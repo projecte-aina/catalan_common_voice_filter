@@ -626,11 +626,17 @@ def main():
                         original_phrase, error_num, exclude_phrase
                     )
                     break
-                if (
-                    exclude_phrase == False and len(line.split(" ")) >= 18
-                ):  # check sentence has not become too long
-                    excluded_sentences_improper_length.append(original_phrase)
-                    exclude_phrase = True
+                if not exclude_phrase and not is_correct_number_of_tokens(
+                    line.split(" ")
+                ):
+                    (
+                        excluded_sentences_improper_length,
+                        exclude_phrase,
+                    ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                        original_phrase,
+                        excluded_sentences_improper_length,
+                        exclude_phrase,
+                    )
 
         if count >= len(tokens) / 3:
             exclude_phrase = True
