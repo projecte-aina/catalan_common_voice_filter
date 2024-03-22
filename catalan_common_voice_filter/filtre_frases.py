@@ -1,5 +1,7 @@
+import logging
 import os
 import re
+import subprocess
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
@@ -7,8 +9,10 @@ from re import Match
 from typing import List, Tuple, Union
 
 import hunspell
+import lingua_franca
 import spacy
 import unidecode
+from lingua_franca.format import pronounce_number
 from sentence_splitter import SentenceSplitter
 from spacy.tokens.token import Token
 
@@ -23,6 +27,8 @@ from catalan_common_voice_filter.constants import (
     REPLACEMENT_WORDS,
     SENTENCE_END_CHARS,
 )
+
+logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
 
 
 def add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
@@ -283,6 +289,57 @@ def token_starts_with_lowercase_letter_and_is_not_a_pronoun(token: Token) -> boo
     return token.text[0].islower() and token.text != "ls"
 
 
+def token_contains_numbers(token: Token) -> bool:
+    return any(char in token.text for char in NUMBERS)
+
+
+def _is_token_depicting_an_hour(token: Token) -> bool:
+    return token.text[-1] == "h"
+
+
+def _replace_hour_abbreviation_with_full_word(
+    token: Token, line: str, number: str, number_in_catalan: str
+) -> str:
+    line = line.replace(token.text, token.text[:-1])
+    line = re.sub(number, number_in_catalan + " hores", line)
+    return line
+
+
+def transcribe_number(token: Token, line: str) -> str:
+    numbers = re.findall(r" \d+ |\d+(?=\D|$)", token.text)
+    for number in numbers:
+        try:
+            number_as_word = pronounce_number(int(number), "en")
+            number_in_catalan = translate_to_catalan(number_as_word)
+            if _is_token_depicting_an_hour(token):
+                line = _replace_hour_abbreviation_with_full_word(
+                    token, line, number, number_in_catalan
+                )
+            else:
+                line = re.sub(number, number_in_catalan, line)
+        except IOError as err:
+            raise IOError(err)
+
+    return line
+
+
+def translate_to_catalan(number_in_english: str) -> str:
+    command = f'echo "{number_in_english}" | apertium eng-cat'
+    process = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    output, error = process.communicate()
+
+    if error:
+        raise IOError(error)
+    else:
+        return output.strip()
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -349,6 +406,7 @@ def main():
     )
     args = parser.parse_args()
 
+    lingua_franca.load_language("en")
     dic = hunspell.HunSpell("data/ca.dic", "data/ca.aff")
     spacy_tokenizer = spacy.load(
         "ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"]
@@ -556,39 +614,24 @@ def main():
                     if token.text[0].isupper():
                         count += 1
 
-            if any(
-                element in token.text for element in NUMBERS
-            ):  # if there is any figure
-                try:  # try to transcribe it
-                    transcrip = nums.llegeix_nums(token.text)
-                    line = line.replace(
-                        token.text,
-                        transcrip,
-                        1,
+            if token_contains_numbers(token):
+                try:
+                    line = transcribe_number(token, line)
+                except IOError as err:
+                    logging.error(err)
+                    (
+                        error_num,
+                        exclude_phrase,
+                    ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                        original_phrase, error_num, exclude_phrase
                     )
-                except:  # if we can't
-                    if token.text[-1] == "h":  # see if word ends in 'h' and try again
-                        try:
-                            transcrip = nums.llegeix_nums(token.text[:-1]) + " hores"
-                            line = line.replace(
-                                token.text,
-                                transcrip,
-                                1,
-                            )
-
-                        except:  # if it can't be transcribed, discard it
-                            error_num.append(original_phrase)
-                            exclude_phrase = True
-                            break
-                    else:  # mark as an error
-                        error_num.append(original_phrase)
-                        exclude_phrase = True
-                        break
+                    break
                 if (
                     exclude_phrase == False and len(line.split(" ")) >= 18
                 ):  # check sentence has not become too long
                     excluded_sentences_improper_length.append(original_phrase)
                     exclude_phrase = True
+
         if count >= len(tokens) / 3:
             exclude_phrase = True
             excluded_ratios.append(original_phrase)

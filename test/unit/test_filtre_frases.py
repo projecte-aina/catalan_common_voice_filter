@@ -1,6 +1,7 @@
 from argparse import Namespace
 from pathlib import Path
 
+import lingua_franca
 import pytest
 import spacy
 
@@ -21,7 +22,9 @@ from catalan_common_voice_filter.filtre_frases import (
     replace_abbreviations,
     sentence_ends_incorrectly,
     store_and_print_selected_options,
+    token_contains_numbers,
     token_starts_with_lowercase_letter_and_is_not_a_pronoun,
+    transcribe_number,
 )
 
 
@@ -363,3 +366,37 @@ def test_token_starts_with_lowercase_letter_and_is_not_a_pronoun(
         result = token_starts_with_lowercase_letter_and_is_not_a_pronoun(token)
 
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected", [("t3st4", True), ("3452", True), ("Test", False)]
+)
+def test_token_contains_numbers(text, expected, spacy_tokenizer):
+    tokens = spacy_tokenizer(text)
+    for token in tokens:
+        result = token_contains_numbers(token)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Va venir a les 3h.", "Va venir a les tres hores."),
+        ("Va venir a les 4 h.", "Va venir a les quatre h."),
+        (
+            "Da néixer al 1872 i va morir al 1567 i del 1567.",
+            "Da néixer al divuit setanta dos i va morir al quinze seixanta set i del quinze seixanta set.",
+        ),
+        ("Del 1872 al 1567.", "Del divuit setanta dos al quinze seixanta set."),
+    ],
+)
+def test_transcribe_number(text, expected, spacy_tokenizer):
+    lingua_franca.load_language("en")
+    line = text
+    tokens = spacy_tokenizer(text)
+    for token in tokens:
+        if token_contains_numbers(token):
+            line = transcribe_number(token, line)
+
+    assert line == expected
