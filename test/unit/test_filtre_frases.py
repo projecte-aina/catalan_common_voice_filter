@@ -14,8 +14,10 @@ from catalan_common_voice_filter.filtre_frases import (
     create_output_directory_path,
     is_correct_number_of_tokens,
     is_name,
+    is_proper_noun_ratio_correct,
     is_token_a_verb,
     is_valid_single_letter_token,
+    line_does_not_contain_verb_and_verbs_required,
     line_ends_with_punctuation,
     line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
@@ -400,3 +402,44 @@ def test_transcribe_number(text, expected, spacy_tokenizer):
             line = transcribe_number(token, line)
 
     assert line == expected
+
+
+@pytest.mark.parametrize(
+    "verb_token_present,verb_required,exclude_phrase,expected",
+    [
+        (True, True, True, False),
+        (True, True, False, False),
+        (True, False, True, False),
+        (False, True, True, False),
+        (False, False, True, False),
+        (False, True, False, True),
+        (True, False, False, False),
+        (False, False, False, False),
+    ],
+)
+def test_line_does_not_contain_verb_and_verbs_required(
+    verb_token_present, verb_required, exclude_phrase, expected
+):
+    result = line_does_not_contain_verb_and_verbs_required(
+        verb_token_present, verb_required, exclude_phrase
+    )
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "proper_noun_count,text,expected",
+    [
+        (3, "Olivia Almodovar Santiago.", False),
+        (2, "La Maria Marieta", False),
+        (1, "La Senyora Maria", False),
+        (0, "Va venir a les tres hores.", True),
+    ],
+)
+def test_is_proper_noun_ratio_correct(
+    proper_noun_count, text, expected, spacy_tokenizer
+):
+    tokens = spacy_tokenizer(text)
+    result = is_proper_noun_ratio_correct(proper_noun_count, tokens)
+
+    assert result == expected

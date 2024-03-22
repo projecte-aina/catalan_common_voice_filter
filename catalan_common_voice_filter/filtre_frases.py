@@ -6,7 +6,7 @@ from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from pathlib import Path
 from re import Match
-from typing import List, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
 import hunspell
 import lingua_franca
@@ -340,6 +340,22 @@ def translate_to_catalan(number_in_english: str) -> str:
         return output.strip()
 
 
+def line_does_not_contain_verb_and_verbs_required(
+    verb_token_present: bool, verb_required: bool, exclude_phrase: bool
+) -> bool:
+    return not verb_token_present and verb_required and not exclude_phrase
+
+
+def is_token_a_proper_noun(token: Token) -> bool:
+    return token.text[0].isupper()
+
+
+def is_proper_noun_ratio_correct(
+    proper_noun_count: int, tokens: Sequence[Token]
+) -> bool:
+    return proper_noun_count < len(tokens) / 3
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -445,7 +461,7 @@ def main():
     excluded_verbs = []
 
     for line in sentences:
-        count = 0
+        proper_noun_count = 0
         exclude_phrase = False
         original_phrase = line
 
@@ -611,8 +627,8 @@ def main():
                         )
                         break
 
-                    if token.text[0].isupper():
-                        count += 1
+                    if is_token_a_proper_noun(token):
+                        proper_noun_count += 1
 
             if token_contains_numbers(token):
                 try:
@@ -638,19 +654,23 @@ def main():
                         exclude_phrase,
                     )
 
-        if count >= len(tokens) / 3:
-            exclude_phrase = True
-            excluded_ratios.append(original_phrase)
-        else:
-            if (
-                verb_token_present == False
-                and args.verb == True
-                and exclude_phrase == False
-            ):  # if it doesn't have a verb and we've made it a requirement and the sentence hasn't been deleted before, delete the sentence
-                exclude_phrase = True
-                excluded_verbs.append(original_phrase)
-
-        if exclude_phrase == False:
+        if not is_proper_noun_ratio_correct(proper_noun_count, tokens):
+            (
+                excluded_ratios,
+                exclude_phrase,
+            ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                original_phrase, excluded_ratios, exclude_phrase
+            )
+        elif line_does_not_contain_verb_and_verbs_required(
+            verb_token_present, args.verb, exclude_phrase
+        ):
+            (
+                excluded_verbs,
+                exclude_phrase,
+            ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
+                original_phrase, excluded_verbs, exclude_phrase
+            )
+        elif not exclude_phrase:
             if "." in line[:-2]:  # check that there is no period left in the sentence
                 if ".." in line:
                     line = re.sub("\.(\.)+", "...", line)
