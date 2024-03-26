@@ -11,7 +11,10 @@ from catalan_common_voice_filter.filtre_frases import (
     are_numbers_in_line,
     are_time_expressions_in_line,
     are_words_repeated,
+    clean_up_sentence_end,
     create_output_directory_path,
+    fix_apostrophes,
+    fix_quotation_marks,
     is_correct_number_of_tokens,
     is_name,
     is_proper_noun_ratio_correct,
@@ -22,6 +25,7 @@ from catalan_common_voice_filter.filtre_frases import (
     line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
     replace_abbreviations,
+    replace_multiple_punctuation_marks_with_single_punctuation_mark,
     sentence_ends_incorrectly,
     store_and_print_selected_options,
     token_contains_numbers,
@@ -441,5 +445,84 @@ def test_is_proper_noun_ratio_correct(
 ):
     tokens = spacy_tokenizer(text)
     result = is_proper_noun_ratio_correct(proper_noun_count, tokens)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [("Sentence test,", "Sentence test."), ("Sentence test", "Sentence test.")],
+)
+def test_clean_up_sentence_end(text, expected):
+    result = clean_up_sentence_end(text)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Test sentence?!.", "Test sentence?!"),
+        ("Test sentence!!!!!!!!!", "Test sentence!"),
+        ("Test sentence???????", "Test sentence?"),
+    ],
+)
+def test_replace_multiple_punctuation_marks_with_single_punctuation_mark(
+    text, expected
+):
+    result = replace_multiple_punctuation_marks_with_single_punctuation_mark(text)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        (
+            "L’altre dia em vaig trobar la Sòina Pérez.",
+            "L'altre dia em vaig trobar la Sòina Pérez.",
+        ),
+        (
+            "i se’n donen casos cada dia en els nostres llibres",
+            "i se'n donen casos cada dia en els nostres llibres",
+        ),
+        (
+            "força desprovistes d' ordre i de concert",
+            "força desprovistes d'ordre i de concert",
+        ),
+        (
+            "L'altre dia em vaig trobar la Sòina Pérez.",
+            "L'altre dia em vaig trobar la Sòina Pérez.",
+        ),
+        (
+            "i se'n donen casos cada dia en els nostres llibres",
+            "i se'n donen casos cada dia en els nostres llibres",
+        ),
+        (
+            "força desprovistes d'ordre i de concert",
+            "força desprovistes d'ordre i de concert",
+        ),
+    ],
+)
+def test_fix_apostrophes(text, expected):
+    result = fix_apostrophes(text)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("«Test sentence»", "«Test sentence»"),
+        ("«Test sentence", "Test sentence"),
+        ("em va dir \"apropa't una miqueta mes", "em va dir apropa't una miqueta mes"),
+        (
+            'em va dir "apropa\'t" una miqueta mes',
+            'em va dir "apropa\'t" una miqueta mes',
+        ),
+    ],
+)
+def test_fix_quotation_marks(text, expected):
+    result = fix_quotation_marks(text)
 
     assert result == expected

@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 from argparse import ArgumentParser, Namespace
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from re import Match
@@ -43,15 +44,11 @@ def get_surname_list() -> List[str]:
     with open(Path("data/cognoms_list.txt"), "r") as f:
         all_surnames = f.read().splitlines()
 
-    surnames = []
-    for surname in all_surnames:
-        if len(surname) >= 3:
-            surnames.append(surname)
-
+    surnames = [surname for surname in all_surnames if len(surname) >= 3]
     return surnames
 
 
-def descriu(descriptor, llista, total):
+def describe(descriptor, llista, total):
     text = (
         descriptor
         + " "
@@ -73,31 +70,29 @@ def create_file(output_dir, filter_file_name, myfile, mylist):
             f.writelines(frase + "\n")
 
 
-def fix_quotation_marks(text):
-    text = re.sub(
-        r"([nldNLD])’(h?[aeiouAEIOUàèéíòóúÀÈÉÍÒÓÚ])", r"\1'\2", text
-    )  # fix apostrophes
-    text = re.sub(
-        r"([aeiouAEIOUàèéíòóú])’([nldNLD])", r"\1'\2", text
-    )  # fix apostrophes
-    text = re.sub(
-        r"([aeiouAEIOUàèéíòóúnldNLD])' (h?[aeiouAEIOUàèéíòóúnldNLD])", r"\1'\2", text
-    )  # fix apostrophes
-    if text[0] in QUOTATION_MARKS:
-        if any(quotation_mark in text[1:] for quotation_mark in QUOTATION_MARKS):
-            pass
-        else:
-            text = text[1:]
-    elif any(quotation_mark in text[1:] for quotation_mark in QUOTATION_MARKS):
-        countc = 0
-        for c in text[1:]:
-            if c in QUOTATION_MARKS:
-                countc += 1
-        if countc % 2 != 0:
-            for c in text[1:]:
-                if c in QUOTATION_MARKS:
-                    text = text.replace(c, "")
-    return text
+def fix_apostrophes(line: str) -> str:
+    line = re.sub(r"([nldNLD])’(h?[aeiouAEIOUàèéíòóúÀÈÉÍÒÓÚ])", r"\1'\2", line)
+    line = re.sub(r"([aeiouAEIOUàèéíòóú])’([nldNLD])", r"\1'\2", line)
+    line = re.sub(
+        r"([aeiouAEIOUàèéíòóúnldNLD])' (h?[aeiouAEIOUàèéíòóúnldNLD])", r"\1'\2", line
+    )
+    return line
+
+
+def fix_quotation_marks(line: str) -> str:
+    character_counts = Counter(line)
+    quotation_mark_character_counts = {
+        char: count
+        for char, count in character_counts.items()
+        if char in QUOTATION_MARKS
+    }
+    quotation_mark_count_sum = sum(quotation_mark_character_counts.values())
+
+    if quotation_mark_count_sum % 2 != 0:
+        for char in quotation_mark_character_counts.keys():
+            line = line.replace(char, "")
+
+    return line
 
 
 def store_and_print_selected_options(
@@ -356,6 +351,37 @@ def is_proper_noun_ratio_correct(
     return proper_noun_count < len(tokens) / 3
 
 
+def clean_up_sentence_end(line: str) -> str:
+    if line[-1] == ",":
+        line = line[:-1]
+    line = line + "."
+    return line
+
+
+def clean_up_sentence_beginning(line: str) -> str:
+    if line[0] == " ":
+        line = line[1:]
+    if line[0].islower():
+        line = line[0].upper() + line[1:]
+    return line
+
+
+def replace_multiple_punctuation_marks_with_single_punctuation_mark(line: str) -> str:
+    line = re.sub(r"([\?\!])\.", "\\1", line)
+    line = re.sub(r"\!+", "!", line)
+    line = re.sub(r"\?+", "?", line)
+    return line
+
+
+def is_multiple_periods_in_sentence(line: str) -> bool:
+    return "." in line[:-2]
+
+
+def correctly_format_elipses(line: str) -> str:
+    line = re.sub("\.(\.)+", "...", line)
+    return line
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument(
@@ -558,7 +584,6 @@ def main():
 
         tokens = spacy_tokenizer(line)
         verb_token_present = False
-
         for token in tokens:
             if is_token_a_verb(token):
                 verb_token_present = True
@@ -670,25 +695,22 @@ def main():
             ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
                 original_phrase, excluded_verbs, exclude_phrase
             )
-        elif not exclude_phrase:
-            if "." in line[:-2]:  # check that there is no period left in the sentence
+
+        if not exclude_phrase:
+            if is_multiple_periods_in_sentence(line):
                 if ".." in line:
-                    line = re.sub("\.(\.)+", "...", line)
+                    line = correctly_format_elipses(line)
                 else:
                     excluded_abbreviations.append(original_phrase)
-            else:  # once the sentences have been selected, make the arrangements
+            else:
+                line = fix_apostrophes(line)
                 line = fix_quotation_marks(line)
-                if line[-1] not in SENTENCE_END_CHARS:
-                    if line[-1] == ",":
-                        line = line[:-1]
-                    line = line + "."
-                line = re.sub(r"([\?\!])\.", "\\1", line)
-                line = re.sub(r"\!+", "!", line)
-                line = re.sub(r"\?+", "?", line)
-                if line[0] == " ":
-                    line = line[1:]
-                if line[0].islower():
-                    line = line[0].upper() + line[1:]
+                if not line_ends_with_punctuation(line):
+                    line = clean_up_sentence_end(line)
+                line = replace_multiple_punctuation_marks_with_single_punctuation_mark(
+                    line
+                )
+                line = clean_up_sentence_beginning(line)
                 if line not in selected_phrases:
                     selected_phrases.append(line)
                     selected_phrases_orig.append(original_phrase)
@@ -701,28 +723,27 @@ def main():
     else:
         print("El directori", output_dir, "ja existeix")
 
-    # stats
     total = len(sentences)
     statistics = [
         "línies inici: " + str(total_lines),
         "frases inici: " + str(total),
-        descriu("excloses mida:", excluded_sentences_improper_length, total),
-        descriu("excloses caracter:", excluded_characters, total),
-        descriu("excloses sigles:", excluded_acronyms, total),
-        descriu("excloses paraules:", excluded_words, total),
-        descriu("excloses ortografia:", excluded_spellings, total),
-        descriu("excloses proporció:", excluded_ratios, total),
-        descriu("excloses hores:", excluded_hours, total),
-        descriu("excloses paraules repetides:", excluded_repeated_words, total),
-        descriu("excloses noms:", excluded_names, total),
-        descriu("seleccionades repetides:", selected_phrases_repeated, total),
-        descriu("seleccionades:", selected_phrases, total),
-        descriu("abreviatures:", excluded_abbreviations, total),
-        descriu("possibles trencades:", possible_breaks, total),
-        descriu("comença amb min:", excluded_lowercase, total),
-        descriu("conté una xifra:", excluded_nums, total),
-        descriu("excloses verb:", excluded_verbs, total),
-        descriu("error num:", error_num, total),
+        describe("excloses mida:", excluded_sentences_improper_length, total),
+        describe("excloses caracter:", excluded_characters, total),
+        describe("excloses sigles:", excluded_acronyms, total),
+        describe("excloses paraules:", excluded_words, total),
+        describe("excloses ortografia:", excluded_spellings, total),
+        describe("excloses proporció:", excluded_ratios, total),
+        describe("excloses hores:", excluded_hours, total),
+        describe("excloses paraules repetides:", excluded_repeated_words, total),
+        describe("excloses noms:", excluded_names, total),
+        describe("seleccionades repetides:", selected_phrases_repeated, total),
+        describe("seleccionades:", selected_phrases, total),
+        describe("abreviatures:", excluded_abbreviations, total),
+        describe("possibles trencades:", possible_breaks, total),
+        describe("comença amb min:", excluded_lowercase, total),
+        describe("conté una xifra:", excluded_nums, total),
+        describe("excloses verb:", excluded_verbs, total),
+        describe("error num:", error_num, total),
     ]
     for line in statistics:
         print(line)
