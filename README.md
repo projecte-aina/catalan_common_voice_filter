@@ -3,9 +3,23 @@ Scripts que faig servir per al corpus commonvoice
 
 ## Preparar el venv
 ```
+apt-get update && \
+    apt-get -y upgrade && \
+    apt-get install -y libhunspell-dev
+
+curl -sS https://apertium.projectjj.com/apt/install-release.sh | sudo bash
+apt-get -f install -y \
+    apertium \
+    apertium-all-dev \
+    apertium-cat-spa \
+    apertium-cat-eng \
+    apertium-spa-eng
+
 python3 -m venv myvenv              # crea un venv que es diu myvenv
 source myvenv/bin/activate          # activa el venv
 pip install -r requirements.txt     # installa els requirements
+
+python -m spacy download ca_core_news_sm
 ```
 
 ## Filtrar les frases
