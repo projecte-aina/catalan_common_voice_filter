@@ -225,6 +225,9 @@ def test_is_name(text, surnames, expected):
         ("Test:", True),
         ("Test - Line", True),
         ("Test line", False),
+        ("\U0001F600", True),  # Emoji unicode 😀
+        ("😀", True),
+        ("Test 😊 Line", True),
     ],
 )
 def test_are_excluded_characters_in_line(line, expected):
