@@ -60,13 +60,13 @@ def describe(descriptor, llista, total):
     return text
 
 
-def create_file(output_dir, filter_file_name, myfile, mylist):
-    mylist.sort()
+def create_file(output_dir, filter_file_name, statistics_file_name, exclusion_list):
+    exclusion_list.sort()
 
     os.makedirs(output_dir, exist_ok=True)
-    new_file = output_dir / f"{filter_file_name}_{myfile}"
+    new_file = output_dir / f"{filter_file_name}_{statistics_file_name}"
     with open(new_file, "w") as f:
-        for frase in mylist:
+        for frase in exclusion_list:
             f.writelines(frase + "\n")
 
 
@@ -388,6 +388,12 @@ def create_output_dir_if_not_exists(output_dir: Path) -> None:
         print("Hem creat el directori", output_dir)
     else:
         print("El directori", output_dir, "ja existeix")
+
+
+def create_case_studies_file(output_file: Path, case_studies: List[str]) -> None:
+    with open(output_file, "w") as f:
+        for phrase in case_studies:
+            f.writelines(phrase[1] + "\t" + phrase[0] + "\n")
 
 
 def main():
@@ -752,72 +758,59 @@ def main():
     for line in statistics:
         print(line)
 
-    create_file(
-        output_dir,
-        filter_file_name,
-        "estadistiques_filtre.txt",
+    all_exclusion_lists = [
         selected_options + ["---------"] + statistics,
-    )
-    create_file(
-        output_dir, filter_file_name, "frases_seleccionades.txt", selected_phrases
-    )
-    create_file(
-        output_dir,
-        filter_file_name,
-        "excloses_mida.txt",
+        selected_phrases,
         excluded_sentences_improper_length,
-    )
-    create_file(
-        output_dir, filter_file_name, "excloses_caracter.txt", excluded_characters
-    )
-    create_file(output_dir, filter_file_name, "excloses_sigles.txt", excluded_acronyms)
-    create_file(output_dir, filter_file_name, "excloses_paraula.txt", excluded_words)
-    create_file(
-        output_dir, filter_file_name, "excloses_ortografia.txt", excluded_spellings
-    )
-    create_file(output_dir, filter_file_name, "excloses_proporcio.txt", excluded_ratios)
-    create_file(output_dir, filter_file_name, "excloses_hores.txt", excluded_hours)
-    create_file(
-        output_dir,
-        filter_file_name,
-        "excloses_paraules_repetides.txt",
+        excluded_characters,
+        excluded_acronyms,
+        excluded_words,
+        excluded_spellings,
+        excluded_ratios,
+        excluded_hours,
         excluded_repeated_words,
-    )
-    create_file(output_dir, filter_file_name, "excloses_nom.txt", excluded_names)
-    create_file(
-        output_dir,
-        filter_file_name,
-        "frases_seleccionades_repetides.txt",
+        excluded_names,
         selected_phrases_repeated,
-    )
-    create_file(output_dir, filter_file_name, "error_num.txt", error_num)
-    create_file(
-        output_dir, filter_file_name, "possibles_trencades.txt", possible_breaks
-    )
-    create_file(
-        output_dir, filter_file_name, "excloses_abreviatura.txt", excluded_abbreviations
-    )
-    create_file(
-        output_dir, filter_file_name, "excloses_minuscula.txt", excluded_lowercase
-    )
-    create_file(output_dir, filter_file_name, "excloses_num.txt", excluded_nums)
-    create_file(output_dir, filter_file_name, "excloses_verb.txt", excluded_verbs)
-    create_file(
-        output_dir,
-        filter_file_name,
-        "frases_seleccionades_originals.txt",
+        error_num,
+        possible_breaks,
+        excluded_abbreviations,
+        excluded_lowercase,
+        excluded_nums,
+        excluded_verbs,
         selected_phrases_orig,
-    )
+    ]
+    all_exclusion_list_files = [
+        "estadistiques_filtre.txt",
+        "frases_seleccionades.txt",
+        "excloses_mida.txt",
+        "excloses_caracter.txt",
+        "excloses_sigles.txt",
+        "excloses_paraula.txt",
+        "excloses_ortografia.txt",
+        "excloses_proporcio.txt",
+        "excloses_hores.txt",
+        "excloses_paraules_repetides.txt",
+        "excloses_nom.txt",
+        "frases_seleccionades_repetides.txt",
+        "error_num.txt",
+        "possibles_trencades.txt",
+        "excloses_abreviatura.txt",
+        "excloses_minuscula.txt",
+        "excloses_num.txt",
+        "excloses_verb.txt",
+        "frases_seleccionades_originals.txt",
+    ]
+    for exclusion_list, file in zip(all_exclusion_lists, all_exclusion_list_files):
+        create_file(output_dir, filter_file_name, file, exclusion_list)
 
-    new_file = output_dir / f"{filter_file_name}_estudi_cas_filtre.tsv"
-    with open(new_file, "w") as f:
-        for frase in case_studies:
-            f.writelines(frase[1] + "\t" + frase[0] + "\n")
+    case_studies_files = [
+        output_dir / f"{filter_file_name}_estudi_cas_filtre.tsv",
+        output_dir / f"{filter_file_name}_estudi_cas_ortografia.tsv",
+    ]
+    all_case_studies = [case_studies, spelling_case_studies]
 
-    new_file = output_dir / f"{filter_file_name}_estudi_cas_ortografia.tsv"
-    with open(new_file, "w") as f:
-        for frase in spelling_case_studies:
-            f.writelines(frase[1] + "\t" + frase[0] + "\n")
+    for case_studies_file, case_study in zip(case_studies_files, all_case_studies):
+        create_case_studies_file(case_studies_file, case_study)
 
 
 if __name__ == "__main__":
