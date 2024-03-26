@@ -82,9 +82,9 @@ def fix_apostrophes(line: str) -> str:
 def fix_quotation_marks(line: str) -> str:
     character_counts = Counter(line)
     quotation_mark_character_counts = {
-        char: count
-        for char, count in character_counts.items()
-        if char in QUOTATION_MARKS
+        char: character_counts[char]
+        for char in QUOTATION_MARKS
+        if char in character_counts.keys()
     }
     quotation_mark_count_sum = sum(quotation_mark_character_counts.values())
 
@@ -380,6 +380,14 @@ def is_multiple_periods_in_sentence(line: str) -> bool:
 def correctly_format_elipses(line: str) -> str:
     line = re.sub("\.(\.)+", "...", line)
     return line
+
+
+def create_output_dir_if_not_exists(output_dir: Path) -> None:
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+        print("Hem creat el directori", output_dir)
+    else:
+        print("El directori", output_dir, "ja existeix")
 
 
 def main():
@@ -717,11 +725,7 @@ def main():
                 else:
                     selected_phrases_repeated.append(line)
 
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
-        print("Hem creat el directori", output_dir)
-    else:
-        print("El directori", output_dir, "ja existeix")
+    create_output_dir_if_not_exists(output_dir)
 
     total = len(sentences)
     statistics = [
