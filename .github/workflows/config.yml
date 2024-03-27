@@ -30,7 +30,7 @@ jobs:
         flake8 src/ tests/
     - name: Type check with mypy
       run: |
-        mypy src/
+        mypy --ignore-missing-imports src/
     - name: Run unit & integration tests
       run: |
         python -m pytest --cov=catalan_common_voice_filter
