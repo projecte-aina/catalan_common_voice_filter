@@ -1,0 +1,36 @@
+name: Run Tests
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: Install Ubuntu dependencies
+      run: |
+        sudo apt-get install -y libhunspell-dev sudo curl
+        curl -sS https://apertium.projectjj.com/apt/install-release.sh | sudo bash
+        sudo apt-get -f install -y apertium apertium-all-dev apertium-cat-spa apertium-cat-eng apertium-spa-eng
+    - name: Install pip dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements_dev.txt
+        python -m spacy download ca_core_news_sm
+    - name: Lint with flake8
+      run: |
+        flake8 src/ tests/
+    - name: Type check with mypy
+      run: |
+        mypy src/
+    - name: Run unit & integration tests
+      run: |
+        pytest --cov=catalan_common_voice_filter
