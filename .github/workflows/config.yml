@@ -33,4 +33,4 @@ jobs:
         mypy src/
     - name: Run unit & integration tests
       run: |
-        pytest --cov=catalan_common_voice_filter
+        python -m pytest --cov=catalan_common_voice_filter
