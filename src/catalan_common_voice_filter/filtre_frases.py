@@ -41,7 +41,7 @@ def add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
 
 
 def get_surname_list() -> List[str]:
-    with open(Path("../data/cognoms_list.txt"), "r") as f:
+    with open(Path("data/cognoms_list.txt"), "r") as f:
         all_surnames = f.read().splitlines()
 
     surnames = [surname for surname in all_surnames if len(surname) >= 3]
@@ -478,7 +478,7 @@ def main() -> None:
     args = parser.parse_args()
 
     lingua_franca.load_language("en")
-    dic = hunspell.HunSpell("../data/ca.dic", "../data/ca.aff")
+    dic = hunspell.HunSpell("data/ca.dic", "data/ca.aff")
     spacy_tokenizer = spacy.load(
         "ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"]
     )
