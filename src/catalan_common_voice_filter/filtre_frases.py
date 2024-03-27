@@ -6,8 +6,7 @@ from argparse import ArgumentParser, Namespace
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from re import Match
-from typing import List, Sequence, Tuple, Union
+from typing import List, Match, Tuple, Union
 
 import hunspell
 import lingua_franca
@@ -15,6 +14,7 @@ import spacy
 import unidecode
 from lingua_franca.format import pronounce_number
 from sentence_splitter import SentenceSplitter
+from spacy.tokens import Doc
 from spacy.tokens.token import Token
 
 from catalan_common_voice_filter.constants import (
@@ -33,7 +33,7 @@ logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
 
 
 def add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
-    line: str, exclusion_list: True, exclude_phrase: bool
+    line: str, exclusion_list: List[str], exclude_phrase: bool
 ) -> Tuple[List[str], bool]:
     exclusion_list.append(line)
     exclude_phrase = True
@@ -41,26 +41,31 @@ def add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
 
 
 def get_surname_list() -> List[str]:
-    with open(Path("data/cognoms_list.txt"), "r") as f:
+    with open(Path("../data/cognoms_list.txt"), "r") as f:
         all_surnames = f.read().splitlines()
 
     surnames = [surname for surname in all_surnames if len(surname) >= 3]
     return surnames
 
 
-def describe(descriptor, llista, total):
+def describe(descriptor: str, exclusion_list: List[str], total: int) -> str:
     text = (
         descriptor
         + " "
-        + str(len(llista))
+        + str(len(exclusion_list))
         + " ("
-        + str(round(len(llista) * 100 / total, 2))
+        + str(round(len(exclusion_list) * 100 / total, 2))
         + "%)"
     )
     return text
 
 
-def create_file(output_dir, filter_file_name, statistics_file_name, exclusion_list):
+def create_file(
+    output_dir: Path,
+    filter_file_name: str,
+    statistics_file_name: str,
+    exclusion_list: List[str],
+) -> None:
     exclusion_list.sort()
 
     os.makedirs(output_dir, exist_ok=True)
@@ -104,23 +109,23 @@ def store_and_print_selected_options(
     ]
     print(*selected_options)
 
-    if args.punctuation == True:
+    if args.punctuation:
         text = "- Només frases amb marques de finals"
         print(text)
         selected_options.append(text)
-    if args.numbers == True:
+    if args.numbers:
         text = "- S'eliminen les frases amb xifres"
         print(text)
         selected_options.append(text)
-    if args.verb == True:
+    if args.verb:
         text = "- Només frases amb verbs"
         print(text)
         selected_options.append(text)
-    if args.capitals == True:
+    if args.capitals:
         text = "- Només frases que comencen amb majúscula"
         print(text)
         selected_options.append(text)
-    if args.proper_nouns == True:
+    if args.proper_nouns:
         text = "- Exclou frases amb possibles noms"
         print(text)
         selected_options.append(text)
@@ -141,8 +146,8 @@ def create_output_directory_path(
 def create_excluded_words_list(excluded_words_list_file: Union[str, None]) -> List[str]:
     words_to_exclude = []
     if excluded_words_list_file:
-        excluded_words_list_file = Path(excluded_words_list_file)
-        with open(excluded_words_list_file, "r") as f:
+        excluded_words_list_path = Path(excluded_words_list_file)
+        with open(excluded_words_list_path, "r") as f:
             words_to_exclude = f.read().splitlines()
 
     return words_to_exclude
@@ -197,14 +202,14 @@ def line_ends_with_punctuation(
     return False
 
 
-def are_words_repeated(line: str):
+def are_words_repeated(line: str) -> bool:
     if not re.search(REPEATED_WORDS, line.lower()):
         return False
 
     return True
 
 
-def _is_word_too_short_to_be_name(name_search: Match) -> bool:
+def _is_word_too_short_to_be_name(name_search: Match[str]) -> bool:
     return name_search.span()[0] == 0 and len(name_search.group(0).split(" ")[0]) <= 2
 
 
@@ -263,7 +268,10 @@ def sentence_ends_incorrectly(tokens: List[str]) -> bool:
 
 
 def is_token_a_verb(token: Token) -> bool:
-    return token.pos_ == "VERB" or token.pos_ == "AUX"
+    if token.pos_ == "VERB" or token.pos_ == "AUX":
+        return True
+
+    return False
 
 
 def replace_abbreviations(token: Token, line: str) -> str:
@@ -281,7 +289,10 @@ def is_valid_single_letter_token(token: Token) -> bool:
 
 
 def token_starts_with_lowercase_letter_and_is_not_a_pronoun(token: Token) -> bool:
-    return token.text[0].islower() and token.text != "ls"
+    if token.text[0].islower() and token.text != "ls":
+        return True
+
+    return False
 
 
 def token_contains_numbers(token: Token) -> bool:
@@ -289,7 +300,10 @@ def token_contains_numbers(token: Token) -> bool:
 
 
 def _is_token_depicting_an_hour(token: Token) -> bool:
-    return token.text[-1] == "h"
+    if token.text[-1] == "h":
+        return True
+
+    return False
 
 
 def _replace_hour_abbreviation_with_full_word(
@@ -342,12 +356,13 @@ def line_does_not_contain_verb_and_verbs_required(
 
 
 def is_token_a_proper_noun(token: Token) -> bool:
-    return token.text[0].isupper()
+    if token.text[0].isupper():
+        return True
+
+    return False
 
 
-def is_proper_noun_ratio_correct(
-    proper_noun_count: int, tokens: Sequence[Token]
-) -> bool:
+def is_proper_noun_ratio_correct(proper_noun_count: int, tokens: Doc) -> bool:
     return proper_noun_count < len(tokens) / 3
 
 
@@ -378,7 +393,7 @@ def is_multiple_periods_in_sentence(line: str) -> bool:
 
 
 def correctly_format_elipses(line: str) -> str:
-    line = re.sub("\.(\.)+", "...", line)
+    line = re.sub(r"\.(\.)+", "...", line)
     return line
 
 
@@ -390,13 +405,13 @@ def create_output_dir_if_not_exists(output_dir: Path) -> None:
         print("El directori", output_dir, "ja existeix")
 
 
-def create_case_studies_file(output_file: Path, case_studies: List[str]) -> None:
+def create_case_studies_file(output_file: Path, case_studies: List[List[str]]) -> None:
     with open(output_file, "w") as f:
         for phrase in case_studies:
             f.writelines(phrase[1] + "\t" + phrase[0] + "\n")
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument(
         "--file",
@@ -463,7 +478,7 @@ def main():
     args = parser.parse_args()
 
     lingua_franca.load_language("en")
-    dic = hunspell.HunSpell("data/ca.dic", "data/ca.aff")
+    dic = hunspell.HunSpell("../data/ca.dic", "../data/ca.aff")
     spacy_tokenizer = spacy.load(
         "ca_core_news_sm", exclude=["parser", "attribute_ruler", "lemmatizer", "ner"]
     )
@@ -478,27 +493,27 @@ def main():
     sentences, total_lines = split_filter_file_into_sentences(file_to_filter)
 
     # here are the lists where the sentences are saved depending on whether they are discarded or not
-    discarded_tokens = []
-    selected_phrases = []
-    selected_phrases_orig = []
-    selected_phrases_repeated = []
-    excluded_characters = []
-    excluded_spellings = []
-    excluded_ratios = []
-    excluded_sentences_improper_length = []
-    excluded_acronyms = []
-    excluded_words = []
-    excluded_repeated_words = []
-    excluded_names = []
-    error_num = []
-    excluded_abbreviations = []
-    excluded_hours = []
-    possible_breaks = []
-    case_studies = []
-    spelling_case_studies = []
-    excluded_lowercase = []
-    excluded_nums = []
-    excluded_verbs = []
+    discarded_tokens: List[str] = []
+    selected_phrases: List[str] = []
+    selected_phrases_orig: List[str] = []
+    selected_phrases_repeated: List[str] = []
+    excluded_characters: List[str] = []
+    excluded_spellings: List[str] = []
+    excluded_ratios: List[str] = []
+    excluded_sentences_improper_length: List[str] = []
+    excluded_acronyms: List[str] = []
+    excluded_words: List[str] = []
+    excluded_repeated_words: List[str] = []
+    excluded_names: List[str] = []
+    error_num: List[str] = []
+    excluded_abbreviations: List[str] = []
+    excluded_hours: List[str] = []
+    possible_breaks: List[str] = []
+    case_studies: List[List[str]] = []
+    spelling_case_studies: List[List[str]] = []
+    excluded_lowercase: List[str] = []
+    excluded_nums: List[str] = []
+    excluded_verbs: List[str] = []
 
     for line in sentences:
         proper_noun_count = 0
@@ -577,8 +592,8 @@ def main():
             )
             continue
 
-        tokens = line.split(" ")  # we do a simple first tokenization
-        if not is_correct_number_of_tokens(tokens):
+        simple_tokens = line.split(" ")  # we do a simple first tokenization
+        if not is_correct_number_of_tokens(simple_tokens):
             (
                 excluded_sentences_improper_length,
                 exclude_phrase,
@@ -587,7 +602,7 @@ def main():
             )
             continue
 
-        if sentence_ends_incorrectly(tokens):
+        if sentence_ends_incorrectly(simple_tokens):
             (
                 possible_breaks,
                 exclude_phrase,

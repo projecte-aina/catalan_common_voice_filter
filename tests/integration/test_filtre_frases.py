@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from pathlib import Path
 
 import pytest
@@ -10,12 +11,12 @@ from catalan_common_voice_filter.filtre_frases import (
 
 @pytest.fixture
 def file_of_words_to_filter_out():
-    return Path("test/data/paraules_per_filtrar_literatura.txt")
+    return Path("tests/data/paraules_per_filtrar_literatura.txt")
 
 
 @pytest.fixture
 def file_to_filter():
-    return Path("test/data/frases_prova.txt")
+    return Path("tests/data/frases_prova.txt")
 
 
 def test_create_excluded_words_list_with_file(file_of_words_to_filter_out):

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from argparse import Namespace
 from pathlib import Path
 
@@ -118,7 +119,7 @@ def test_add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
 
     assert len(exclusion_list) == len(expected)
     assert "Test line" in expected
-    assert exclude_phrase == True
+    assert exclude_phrase
 
 
 def test_create_output_directory_path_with_specified_directory():
