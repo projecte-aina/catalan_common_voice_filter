@@ -1,3 +1,5 @@
+![Tests](https://github.com/mCodingLLC/SlapThatLikeButton-TestingStarterProject/actions/workflows/tests.yml/badge.svg)
+
 # common-voice-scripts
 Scripts que faig servir per al corpus commonvoice
 
