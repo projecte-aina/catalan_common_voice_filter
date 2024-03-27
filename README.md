@@ -1,4 +1,4 @@
-![Tests](https://github.com/mCodingLLC/SlapThatLikeButton-TestingStarterProject/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/projecte-aina/catalan_common_voice_filter/actions/workflows/tests.yml/badge.svg)
 
 # common-voice-scripts
 Scripts que faig servir per al corpus commonvoice
