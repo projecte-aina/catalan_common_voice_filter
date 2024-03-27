@@ -20,6 +20,7 @@ apt-get -f install -y \
 python3 -m venv myvenv              # crea un venv que es diu myvenv
 source myvenv/bin/activate          # activa el venv
 pip install -r requirements.txt     # installa els requirements
+pip install hunspell>=0.5.5
 
 python -m spacy download ca_core_news_sm
 ```
@@ -31,7 +32,8 @@ En cas que no ho siguin, les classifica segons el motiu.
 Crea una carpeta amb les estadístiques i els resultats obtinguts.
 
 ```
-python filtre_frases.py -f FILE [OPTIONS]
+cd src/
+python catalan_common_voice_filter/filtre_frases.py -f FILE [OPTIONS]
 ```
 
 L'script [llegeix_nums_v2.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/llegeix_nums_v2.py) transcriu alguns nombres. [filtre_frases.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/filtre_frases.py) el fa servir per evitar descartar tantes frases.
