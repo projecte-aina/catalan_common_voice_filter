@@ -33,4 +33,4 @@ jobs:
         mypy --ignore-missing-imports src/
     - name: Run unit & integration tests
       run: |
-        python -m pytest --cov=catalan_common_voice_filter
+        pytest --cov=catalan_common_voice_filter
