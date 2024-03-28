@@ -1,7 +1,9 @@
 ![Tests](https://github.com/projecte-aina/catalan_common_voice_filter/actions/workflows/tests.yml/badge.svg)
 
 # common-voice-scripts
-Scripts que faig servir per al corpus commonvoice
+Scripts que faig servir per al corpus commonvoice.
+
+Aquest projecte està desenvolupat per executar-se amb Python 3.10 a Linux Ubuntu 22.04 o posterior.
 
 ## Preparar el venv per executar l'script
 ```
