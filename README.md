@@ -3,26 +3,28 @@
 # common-voice-scripts
 Scripts que faig servir per al corpus commonvoice
 
-## Preparar el venv
+## Preparar el venv per executar l'script
 ```
-apt-get update && \
-    apt-get -y upgrade && \
-    apt-get install -y libhunspell-dev
+sudo apt-get install -y libhunspell-dev
 
 curl -sS https://apertium.projectjj.com/apt/install-release.sh | sudo bash
-apt-get -f install -y \
-    apertium \
-    apertium-all-dev \
-    apertium-cat-spa \
-    apertium-cat-eng \
-    apertium-spa-eng
+sudo apt-get -f install -y apertium apertium-eng-cat
 
-python3 -m venv myvenv              # crea un venv que es diu myvenv
-source myvenv/bin/activate          # activa el venv
+python3 -m venv env                 # crea un venv que es diu env
+source env/bin/activate             # activa el venv
 pip install -r requirements.txt     # installa els requirements
-pip install hunspell>=0.5.5
+pip install hunspell
 
 python -m spacy download ca_core_news_sm
+pip install -e .
+```
+
+## Configuració addicional si voleu desenvolupar i executar proves
+```
+pip install -r requirements_dev.txt      # installa dependències per al desenvolupament
+pre-commit install
+
+pytest
 ```
 
 ## Filtrar les frases
@@ -32,8 +34,8 @@ En cas que no ho siguin, les classifica segons el motiu.
 Crea una carpeta amb les estadístiques i els resultats obtinguts.
 
 ```
-cd src/
-python catalan_common_voice_filter/filtre_frases.py -f FILE [OPTIONS]
+cd src/catalan_common_voice_filter
+python filtre_frases.py -f FILE [OPTIONS]
 ```
 
 L'script [llegeix_nums_v2.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/llegeix_nums_v2.py) transcriu alguns nombres. [filtre_frases.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/filtre_frases.py) el fa servir per evitar descartar tantes frases.
@@ -46,6 +48,7 @@ Nom del filtxer que es vol filtrar
 #### list (-l)
 L'opció -l permet passar un fitxer amb una llista de paraules que podrien causar malentensos problemàtics. S'exclouran les frases que continguin aquestes paraules.
 ```
+cd src/catalan_common_voice_filter
 python filtre_frases.py -f FILE.txt -l LLISTA.txt
 ``` 
 Al directori [llistes_paraules](https://github.com/TeMU-BSC/common-voice-scripts/tree/main/llistes_paraules) hi ha llistes amb paraules que es poden fer servir.
