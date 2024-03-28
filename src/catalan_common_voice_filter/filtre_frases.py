@@ -411,8 +411,7 @@ def create_case_studies_file(output_file: Path, case_studies: List[List[str]]) -
             f.writelines(phrase[1] + "\t" + phrase[0] + "\n")
 
 
-def main() -> None:
-    parser = ArgumentParser()
+def add_args(parser: ArgumentParser) -> None:
     parser.add_argument(
         "--file",
         "-f",
@@ -475,6 +474,11 @@ def main() -> None:
         help="exclou frases amb possibles noms propis",
         default=False,
     )
+
+
+def main() -> None:
+    parser = ArgumentParser()
+    add_args(parser)
     args = parser.parse_args()
 
     lingua_franca.load_language("en")
