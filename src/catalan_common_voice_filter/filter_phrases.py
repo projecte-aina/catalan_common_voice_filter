@@ -467,8 +467,8 @@ def add_args(parser: ArgumentParser) -> None:
         default=False,
     )
     parser.add_argument(
-        "--noms-propis",
-        "-np",
+        "--proper-nouns",
+        "-pn",
         dest="proper_nouns",
         action="store_true",
         help="exclou frases amb possibles noms propis",
