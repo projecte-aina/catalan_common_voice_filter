@@ -1,5 +1,7 @@
 ![Tests](https://github.com/projecte-aina/catalan_common_voice_filter/actions/workflows/tests.yml/badge.svg)
 
+This work has been promoted and financed by the Generalitat de Catalunya through the [Aina project](https://projecteaina.cat/).
+
 # common-voice-scripts
 Scripts que faig servir per al corpus commonvoice.
 
