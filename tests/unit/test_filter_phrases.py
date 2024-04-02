@@ -21,7 +21,6 @@ from catalan_common_voice_filter.filter_phrases import (
     is_proper_noun_ratio_correct,
     is_token_a_verb,
     is_valid_single_letter_token,
-    line_does_not_contain_verb_and_verbs_required,
     line_ends_with_punctuation,
     line_starts_with_lowercase_letter,
     remove_unnecessary_characters,
@@ -73,11 +72,11 @@ def test_store_and_print_selected_options_with_all_options(all_args):
     selected_options = store_and_print_selected_options(all_args, file_name)
     assert len(selected_options) == 7
 
-    assert "- Només frases amb marques de finals" in selected_options
-    assert "- S'eliminen les frases amb xifres" in selected_options
-    assert "- Només frases amb verbs" in selected_options
-    assert "- Només frases que comencen amb majúscula" in selected_options
-    assert "- Exclou frases amb possibles noms" in selected_options
+    assert "- Only sentences with ending punctuation" in selected_options
+    assert "- Sentences with numbers are removed" in selected_options
+    assert "- Only sentences with verbs" in selected_options
+    assert "- Only sentences that start with a capital letter" in selected_options
+    assert "- Exclude sentences with possible proper nouns" in selected_options
     assert file_name in selected_options[0]
 
 
@@ -86,13 +85,13 @@ def test_store_and_print_selected_options_with_some_options(some_args):
     selected_options = store_and_print_selected_options(some_args, file_name)
     assert len(selected_options) == 4
 
-    assert "- S'eliminen les frases amb xifres" in selected_options
-    assert "- Només frases amb verbs" in selected_options
+    assert "- Sentences with numbers are removed" in selected_options
+    assert "- Only sentences with verbs" in selected_options
     assert file_name in selected_options[0]
 
-    assert "- Només frases amb marques de finals" not in selected_options
-    assert "- Només frases que comencen amb majúscula" not in selected_options
-    assert "- Exclou frases amb possibles noms" not in selected_options
+    assert "- Only sentences with ending punctuation" not in selected_options
+    assert "- Only sentences that start with a capital letter" not in selected_options
+    assert "- Exclude sentences with possible proper nouns" not in selected_options
 
 
 @pytest.mark.parametrize(
@@ -411,29 +410,6 @@ def test_transcribe_number(text, expected, spacy_tokenizer):
             line = transcribe_number(token, line)
 
     assert line == expected
-
-
-@pytest.mark.parametrize(
-    "verb_token_present,verb_required,exclude_phrase,expected",
-    [
-        (True, True, True, False),
-        (True, True, False, False),
-        (True, False, True, False),
-        (False, True, True, False),
-        (False, False, True, False),
-        (False, True, False, True),
-        (True, False, False, False),
-        (False, False, False, False),
-    ],
-)
-def test_line_does_not_contain_verb_and_verbs_required(
-    verb_token_present, verb_required, exclude_phrase, expected
-):
-    result = line_does_not_contain_verb_and_verbs_required(
-        verb_token_present, verb_required, exclude_phrase
-    )
-
-    assert result == expected
 
 
 @pytest.mark.parametrize(
