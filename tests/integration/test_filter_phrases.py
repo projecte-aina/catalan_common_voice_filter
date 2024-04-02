@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from catalan_common_voice_filter.filtre_frases import (
+from catalan_common_voice_filter.filter_phrases import (
     create_excluded_words_list,
     split_filter_file_into_sentences,
 )

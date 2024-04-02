@@ -6,7 +6,7 @@ import lingua_franca
 import pytest
 import spacy
 
-from catalan_common_voice_filter.filtre_frases import (
+from catalan_common_voice_filter.filter_phrases import (
     add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true,
     are_excluded_characters_in_line,
     are_numbers_in_line,
