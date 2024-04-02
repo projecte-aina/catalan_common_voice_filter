@@ -109,30 +109,30 @@ Some sentences are modified slightly to be used by the corpus:
 * sentences containing a ":" are split and the first part is removed
 
 ### Resultats
-`filter_phrases.py` creates a folder `resultats_filtre_FILE_DATETIME` in the same directory as the file that has been filtered (unless an 
+`filter_phrases.py` creates a folder `filter_results_FILE_DATETIME` in the same directory as the file that has been filtered (unless an 
 output directory has been specified with the `--dir` flag), with the statistics and the results obtained:
 
-* FILE_error_num.txt (sentences with figures that could not be transcribed)
-* FILE_estadistiques_filtre.txt (statistics)
-* FILE_estudi_cas_filtre.tsv (sentences where a word appears in the list of excluded words, with the word at the beginning)
-* FILE_estudi_cas_ortografia.tsv (sentences with a word that is not in the dictionary, with the word at the beginning)
-* FILE_excloses_abreviatura.txt
-* FILE_excloses_caracter.txt
-* FILE_excloses_hores.txt
-* FILE_excloses_mida.txt
-* FILE_excloses_minúscula.txt
-* FILE_excloses_nom.txt
-* FILE_excloses_num.txt
-* FILE_excloses_ortografia.txt
-* FILE_excloses_paraula.txt
-* FILE_excloses_paraules_repetides.txt
-* FILE_excloses_proporcio.txt (more than a third of the words are proper nouns)
-* FILE_excloses_sigles.txt
-* FILE_excloses_verb.txt
-* FILE_frases_seleccionades_originals.txt (original sentences)
-* FILE_frases_seleccionades_repetides.txt
-* FILE_frases_seleccionades.txt
-* FILE_frases_possibles_trencades.txt (sentences that do not have any ending punctuation)
+* FILE_number_transcription_errors.txt (sentences with figures that could not be transcribed)
+* FILE_filter_statistics.txt (statistics)
+* FILE_filter_case_study.tsv (sentences where a word appears in the list of excluded words, with the word at the beginning)
+* FILE_spelling_case_study.tsv (sentences with a word that is not in the dictionary, with the word at the beginning)
+* FILE_excluded_abbreviations.txt
+* FILE_excluded_characters.txt
+* FILE_excluded_hours.txt
+* FILE_excluded_improper_length.txt
+* FILE_excluded_lowercase.txt
+* FILE_excluded_names.txt
+* FILE_excluded_numbers.txt
+* FILE_excluded_spelling.txt
+* FILE_excluded_words.txt
+* FILE_excluded_repeated_words.txt
+* FILE_excluded_proportion_of_proper_nouns.txt (more than a third of the words are proper nouns)
+* FILE_excluded_acronyms.txt
+* FILE_excluded_verbs.txt
+* FILE_selected_original_phrases.txt (original sentences)
+* FILE_selected_repeated_phrases.txt
+* FILE_selected_phrases.txt
+* FILE_excluded_possible_breaks.txt (sentences that do not have any ending punctuation)
 
 
 ## Links of interest:
