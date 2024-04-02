@@ -531,3 +531,7 @@ def test_fix_quotation_marks(text, expected):
     result = fix_quotation_marks(text)
 
     assert result == expected
+
+
+def test_always_breaks():
+    assert 10 / 0 == 1
