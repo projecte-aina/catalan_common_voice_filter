@@ -2,188 +2,140 @@
 
 This work has been promoted and financed by the Generalitat de Catalunya through the [Aina project](https://projecteaina.cat/).
 
-# common-voice-scripts
-Scripts que faig servir per al corpus commonvoice.
+# Common Voice Script
+This script was designed to filter text for the [Common Voice Catalan Corpus](https://commonvoice.mozilla.org/ca).
 
-Aquest projecte està desenvolupat per executar-se amb Python 3.10 a Linux Ubuntu 22.04 o posterior.
+This project is developed to run with Python 3.10 on Linux Ubuntu 22.04 or later.
 
-## Preparar el venv per executar l'script
+## Configuration and Setup Needed to Run the Script
 ```
-sudo apt-get install -y libhunspell-dev
+$ sudo apt-get install -y libhunspell-dev
 
-curl -sS https://apertium.projectjj.com/apt/install-release.sh | sudo bash
-sudo apt-get -f install -y apertium apertium-eng-cat
+$ curl -sS https://apertium.projectjj.com/apt/install-release.sh | sudo bash
+$ sudo apt-get -f install -y apertium apertium-eng-cat
 
-python3 -m venv env                 # crea un venv que es diu env
-source env/bin/activate             # activa el venv
-pip install -r requirements.txt     # installa els requirements
-pip install hunspell
+$ python3 -m venv env                
+$ source env/bin/activate             
+$ pip install -r requirements.txt     
+$ pip install hunspell
 
-python -m spacy download ca_core_news_sm
-pip install -e .
-```
-
-## Configuració addicional si voleu desenvolupar i executar proves
-```
-pip install -r requirements_dev.txt      # installa dependències per al desenvolupament
-pre-commit install
-
-pytest
+$ python -m spacy download ca_core_news_sm
+$ pip install -e .
 ```
 
-## Filtrar les frases
-[filtre_frases.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/filtre_frases.py) filtra les frases d'un document en .txt i les classifica segons si són útils per al corpus commonvoice o no. 
-En cas que no ho siguin, les classifica segons el motiu.
-
-Crea una carpeta amb les estadístiques i els resultats obtinguts.
-
+## Additional Configuration Needed for Development/Running the Tests
 ```
-cd src/catalan_common_voice_filter
-python filtre_frases.py -f FILE [OPTIONS]
+$ pip install -r requirements_dev.txt      
+$ pre-commit install
+
+$ pytest
 ```
 
-L'script [llegeix_nums_v2.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/llegeix_nums_v2.py) transcriu alguns nombres. [filtre_frases.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/filtre_frases.py) el fa servir per evitar descartar tantes frases.
+## Filter Phrases
+The `filter_phrases.py` script filters sentences from a text document and classifies them according to whether they are useful for the Common Voice corpus or not.
 
-### Opcions del filtre
+If they are not, it classifies them according to the reason.
 
-#### file (-f)
-Nom del filtxer que es vol filtrar
+The script creates a folder with statistics and the obtained results.
 
-#### list (-l)
-L'opció -l permet passar un fitxer amb una llista de paraules que podrien causar malentensos problemàtics. S'exclouran les frases que continguin aquestes paraules.
+To run the script, run the following commands:
+
 ```
-cd src/catalan_common_voice_filter
-python filtre_frases.py -f FILE.txt -l LLISTA.txt
+$ cd src/catalan_common_voice_filter
+$ python filter_phrases.py -f FILE [OPTIONS]
+```
+
+### Filter Options
+
+#### --file (-f) [REQUIRED]
+Path to the file to be filtered
+
+#### --list (-l)
+The `--list` option allows you to pass a file with a list of words that could cause problematic misunderstandings. Sentences containing these words will be excluded.
+
+```
+$ cd src/catalan_common_voice_filter
+$ python filter_phrases.py -f path/to/file-to-filter.txt -l path/to/words-to-exclude.txt
 ``` 
-Al directori [llistes_paraules](https://github.com/TeMU-BSC/common-voice-scripts/tree/main/llistes_paraules) hi ha llistes amb paraules que es poden fer servir.
 
+#### --dir (-d)
+Directory where you want to save the results.
 
-#### dir (-d)
-Directori on es vol desar els resultats.
+If this option is not set, the `filter_phrases.py` script will create a results directory in the parent folder of the file passed in 
+to be filtered.
 
-Si no es posa aquesta opció, es crearà el directori "resultats_filtre_FILE".
+#### --num (-n)
+Remove sentences that contain numbers.
 
-#### numbers (-x)
-Elimina les frases que continguin xifres. 
+If this option is not set, the script will attempt to transcribe the numbers in the text.
 
-Si no es posa aquesta opció, s'intenten transcriure les xifres amb l'script [llegeix_nums_v2.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/llegeix_nums_v2.py).
+#### --cap (-c)
+Remove sentences that do not start with a capital letter.
 
-#### capitals (-m)
-Elimina les frases que no comencin amb majúscula.
+If this option is not set, the script will capitalize the first letter of the sentence.
 
-Si no es posa aquesta opció, l'script posarà la primera lletra de la frase en majúscula.
+#### --punt (-p)
+Remove sentences that don't end in ".", "?" or "!".
 
-#### puntuaction (-p)
-Elimina les frases que no acabin en ".", "?" o "!".
+If this option is not set, the script puts a period at the end of these sentences.
 
-Si no es posa aquesta opció, l'script posa un punt al final d'aquestes frases.
+#### --verb (-v)
+Eliminate sentences that do not contain a verb.
 
-#### verb (-v)
-Elimina les frases que no continguin un verb.
+#### --proper-nouns (-pn)
+Eliminate sentences that contain possible personal names.
 
-#### personal names (-n)
-Elimina les frases que contenen possibles noms de persona.
+### Filtering Criteria
+Sentences that meet any of the following criteria (in this order) are removed:
+* do not reach a minimum of five characters
+* contain numbers that could be expressing hours
+* contain certain characters ($, &, emojis, etc.)
+* contain less than 4 words or more than 18.
+* contain a word written in all capital letters (possible acronyms)
+* contain a word from the list of excluded words
+* contain some word that does not start with a capital letter and is not found in the Hundspell dictionary
+* contain numbers that cannot be transcribed
 
-### Criteris de filtratge
-S'eliminien les frases que compleixen amb algun dels criteris següents (en aquest ordre):
-* no arriben a un mínim de cinc caràcters
-* Contenen nombres que podrien estar expressant hores
-* contenten determinats caràcters ($, &,  emojis, etc.)
-* Contenen menys de 4 paraules o més de 18.
-* Contenen alguna paraula escrita amb majúscules (possibles sigles)
-* Contenen alguna paraula de la llista de paraules excloses
-* Contenen alguna paraula que no comença amb majúscula i no es troba al diccionari Hundspell
-* Contenen xifres que l'script llegeix_nums_v2 no sap transcriure
-
-
-### Modificacions de les frases
-Algunes frases es modifiquen lleugerament per poder-les fer servir pel corpus:
-* Se subsituteixen les cadenes de més d'un ! o ? per un sol caràcter
-* s'intenten arreglar les cometes i apòstrofs
-* S'eliminen determinats caràcters al principi de la línia (*, §, –, numeracions, etc.)
-* S'intenten transcriure les xifres
-* Es desenvolupen algunes sigles i abreviatures
-* Se sustitueixen les cadenes de més de tres punts per "..."
-* S'afegeix un punt a les frases que no estan tancades per cap signe de puntuació
-* Es posa el primer caràcter en majúsucula, si no ho està
-* Es parteixen les frases a partir de ":" i se n'elimina la primera part
+### Modifications of Sentences
+Some sentences are modified slightly to be used by the corpus:
+* strings containing more than one '!' and/or '?' are replaced with a single character
+* quotes and apostrophes will be modified if necessary
+* certain characters at the beginning of the line are removed (*, §, –, numbers, etc.)
+* numbers will be transcribed
+* some common acronyms and abbreviations will be replaced with the full word/phrase
+* strings of more than three dots are replaced by an elipsis ("...")
+* a period is added to sentences that are not closed by any punctuation marks
+* the first character of a sentence is capitalized
+* sentences containing a ":" are split and the first part is removed
 
 ### Resultats
-[filtre_frases.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/filtre_frases.py) crea una carpeta *resultats_filtre_FILE_DATETIME* en el mateix directori on hi ha el fitxer que s'ha filtrat, amb les estadístiques i els resultats obtinguts:
-* FILE_error_num.txt (frases amb xifres que no s'han pogut transcriure)
-* FILE_estadistiques_filtre.txt (estadístiques)
-* FILE_estudi_cas_filtre.tsv (frases on surt alguna paraula de la llista de paraules excloses, amb la paraula al principi)
-* FILE_estudi_cas_ortografia.tsv (frases amb alguna paraula que no consta al diccionari, amb la paraula al principi)
-* FILE_excloses_abreviatura.txt
-* FILE_excloses_caracter.txt
-* FILE_excloses_hores.txt
-* FILE_excloses_mida.txt
-* FILE_excloses_minúscula.txt
-* FILE_excloses_nom.txt
-* FILE_excloses_num.txt
-* FILE_excloses_ortografia.txt
-* FILE_excloses_paraula.txt
-* FILE_excloses_paraules_repetides.txt
-* FILE_excloses_proporcio.txt (més d'un terç de les paraules són noms propis)
-* FILE_excloses_sigles.txt
-* FILE_excloses_verb.txt
-* FILE_frases_seleccionades_originals.txt (les frases abans de ser modificades)
-* FILE_frases_seleccionades_repetides.txt
-* FILE_frases_seleccionades.txt
-* FILE_frases_possibles_trencades.txt (frases que no tenen un signe de finalització)
+`filter_phrases.py` creates a folder `filter_results_FILE_DATETIME` in the same directory as the file that has been filtered (unless an 
+output directory has been specified with the `--dir` flag), with the statistics and the results obtained:
+
+* FILE_number_transcription_errors.txt (sentences with figures that could not be transcribed)
+* FILE_filter_statistics.txt (statistics)
+* FILE_filter_case_study.tsv (sentences where a word appears in the list of excluded words, with the word at the beginning)
+* FILE_spelling_case_study.tsv (sentences with a word that is not in the dictionary, with the word at the beginning)
+* FILE_excluded_abbreviations.txt
+* FILE_excluded_characters.txt
+* FILE_excluded_hours.txt
+* FILE_excluded_improper_length.txt
+* FILE_excluded_lowercase.txt
+* FILE_excluded_names.txt
+* FILE_excluded_numbers.txt
+* FILE_excluded_spelling.txt
+* FILE_excluded_words.txt
+* FILE_excluded_repeated_words.txt
+* FILE_excluded_proportion_of_proper_nouns.txt (more than a third of the words are proper nouns)
+* FILE_excluded_acronyms.txt
+* FILE_excluded_verbs.txt
+* FILE_selected_original_phrases.txt (original sentences)
+* FILE_selected_repeated_phrases.txt
+* FILE_selected_phrases.txt
+* FILE_excluded_possible_breaks.txt (sentences that do not have any ending punctuation)
 
 
-## Filtre ortogràfic
-Per assegurar la qualitat lingüística de les frases, SoftCatalà ens ha compartir el seu filtre ortrogràfic
-
-```
-java -jar PATH/common-voice-scripts/filtercorpus-0.0.1-SNAPSHOT-jar-with-dependencies.jar --txt FITXER_AMB_FRASES.txt seleccionades.txt 2>&1 | tee errors.txt
-```
-
-Si es té temps i ganes, es poden repassar les frases d'erorrs.txt i intentar recuperar-les.
-
-## Eliminar les frases amb noms de persona
-
-Aquesta opció ha estat incorporada a filtre_frases3.py
-
-L'script troba_noms.py busca les frases que contenen l'expressió regular "[A-Z][a-ü]* ([Dd][\'e])? ?[A-Z][a-ü]*" i mira si la segona part és a la llista de cognoms.
-
-```
- python troba_noms.py -f FILE
-``` 
-Si es compeixen les dues condicions, desa la frase en fitxer *frases_amb_possibles_noms.txt, en el mateix directori on hi havia el fitxer original. <b>Cal revisar les frases a mà i deixar només les que tenen noms</b>.
-
-Després, es poden eliminar de l'arxiu original amb la comanda:
-```
-grep -v -f LLISTA_DE_FRASES_A_ESBORRAR.txt LLISTA_DE_TOTES_LES_FRASES.txt > FRASES_SENSE_NOMS.txt
-```
-
-## Preparar una mostra per avaluar
-Commonvoice demana que una mostra de les frases que es puja en cada PR hagi estat revisada per almenys dos parlants nadius.
-El volum de la mostra es calcula amb aquesta eina [sample-size-calculator](https://www.surveymonkey.com/mp/sample-size-calculator/).
-Cal posar la quantitat de frases que es tenen, el confidence level al 99% i el margin of error al 2%.
-
-Llavors es pot fer servir [agafa_una_mostra.py](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/agafa_una_mostra.py):
-
-    python agafa_una_mostra.py -f FILE -n NUM_DE_FRASES_QUE_ES_VOLEN
-
-el resultat es guarda a */tmp/mostra.txt*
-
-### Fulls de càlcul per als anotadors
-Cal anar al [directori del drive](https://drive.google.com/drive/folders/1LgUu0P4zJ0-ewcRV-x1arBKh6wr_Kpne) i fer una còpia de *_template-Sentence_verification_process* i enganxar-hi les frases. 
-I després fer-ne una còpia per l'altra anotadora. 
-Posar el nom del fitxer original i an1 i an2.
-
-## Comparar dues llistes de frases
-```
-python compara_llistes.py --file1 FILE1 --file2 FILE2
-``` 
-
-## Estadístiques
-* [metadata_commonvoice.ipynb](https://github.com/TeMU-BSC/common-voice-scripts/blob/main/metadata_commonvoice.ipynb): notebook amb estadístiques sobre les últimes versions del corpus Common Voice
-* [figs](https://github.com/TeMU-BSC/common-voice-scripts/tree/main/statistics): directori amb els gràfics de les estadístiques
-
-Enllaços d'interès:
+## Links of interest:
 * [cv-dataset](https://github.com/common-voice/cv-dataset/tree/main/datasets)
 * [Common Voice Dataset Analyzer](https://cv-dataset-analyzer.netlify.app/)
 * [Common Voice Metadata Viewer](https://cv-metadata-viewer.netlify.app/)

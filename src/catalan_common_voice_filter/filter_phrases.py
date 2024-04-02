@@ -105,28 +105,28 @@ def store_and_print_selected_options(
 ) -> List[str]:
     selected_options = [
         "* File: " + filter_file_name + "\n",
-        "* Opcions seleccionades:",
+        "* Selected Options:",
     ]
     print(*selected_options)
 
     if args.punctuation:
-        text = "- Només frases amb marques de finals"
+        text = "- Only sentences with ending punctuation"
         print(text)
         selected_options.append(text)
     if args.numbers:
-        text = "- S'eliminen les frases amb xifres"
+        text = "- Sentences with numbers are removed"
         print(text)
         selected_options.append(text)
     if args.verb:
-        text = "- Només frases amb verbs"
+        text = "- Only sentences with verbs"
         print(text)
         selected_options.append(text)
     if args.capitals:
-        text = "- Només frases que comencen amb majúscula"
+        text = "- Only sentences that start with a capital letter"
         print(text)
         selected_options.append(text)
     if args.proper_nouns:
-        text = "- Exclou frases amb possibles noms"
+        text = "- Exclude sentences with possible proper nouns"
         print(text)
         selected_options.append(text)
 
@@ -140,7 +140,7 @@ def create_output_directory_path(
         return Path(output_dir)
 
     now = datetime.now().strftime("%Y%m%d_%H%M")
-    return file_to_filter.parent / f"resulats_filtre_{file_to_filter.stem}_{now}"
+    return file_to_filter.parent / f"filter_results_{file_to_filter.stem}_{now}"
 
 
 def create_excluded_words_list(excluded_words_list_file: Union[str, None]) -> List[str]:
@@ -349,12 +349,6 @@ def translate_to_catalan(number_in_english: str) -> str:
         return output.strip()
 
 
-def line_does_not_contain_verb_and_verbs_required(
-    verb_token_present: bool, verb_required: bool, exclude_phrase: bool
-) -> bool:
-    return not verb_token_present and verb_required and not exclude_phrase
-
-
 def is_token_a_proper_noun(token: Token) -> bool:
     if token.text[0].isupper():
         return True
@@ -400,9 +394,9 @@ def correctly_format_elipses(line: str) -> str:
 def create_output_dir_if_not_exists(output_dir: Path) -> None:
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-        print("Hem creat el directori", output_dir)
+        print("Directory created: ", output_dir)
     else:
-        print("El directori", output_dir, "ja existeix")
+        print("The directory '", output_dir, "' already exists")
 
 
 def create_case_studies_file(output_file: Path, case_studies: List[List[str]]) -> None:
@@ -417,7 +411,7 @@ def add_args(parser: ArgumentParser) -> None:
         "-f",
         dest="file_to_filter",
         action="store",
-        help="fitxer que es vol filtrar",
+        help="File to filter",
         required=True,
     )
     parser.add_argument(
@@ -425,21 +419,21 @@ def add_args(parser: ArgumentParser) -> None:
         "-l",
         dest="list",
         action="store",
-        help="llista de paraules que es volen eliminar",
+        help="List of words to remove",
     )
     parser.add_argument(
         "--dir",
         "-d",
         dest="dir",
         action="store",
-        help="directori on es desaran els resultats",
+        help="Directory to save results in",
     )
     parser.add_argument(
         "--num",
         "-n",
         dest="numbers",
         action="store_true",
-        help="no es transcriuen els números",
+        help="Exclude sentences with numbers",
         default=False,
     )
     parser.add_argument(
@@ -447,7 +441,7 @@ def add_args(parser: ArgumentParser) -> None:
         "-v",
         dest="verb",
         action="store_true",
-        help="només frases amb verbs",
+        help="Exclude sentences without verbs",
         default=False,
     )
     parser.add_argument(
@@ -455,7 +449,7 @@ def add_args(parser: ArgumentParser) -> None:
         "-p",
         dest="punctuation",
         action="store_true",
-        help="només frases amb marques de finals",
+        help="Exclude sentences without punctuation",
         default=False,
     )
     parser.add_argument(
@@ -463,15 +457,15 @@ def add_args(parser: ArgumentParser) -> None:
         "-c",
         dest="capitals",
         action="store_true",
-        help="només frases que comencen amb majúscules",
+        help="Exclude sentences without capital letters",
         default=False,
     )
     parser.add_argument(
-        "--noms-propis",
-        "-np",
+        "--proper-nouns",
+        "-pn",
         dest="proper_nouns",
         action="store_true",
-        help="exclou frases amb possibles noms propis",
+        help="Exclude sentences with proper nouns",
         default=False,
     )
 
@@ -719,9 +713,7 @@ def main() -> None:
             ) = add_line_to_exclusion_list_and_set_exclude_phrase_bool_to_true(
                 original_phrase, excluded_ratios, exclude_phrase
             )
-        elif line_does_not_contain_verb_and_verbs_required(
-            verb_token_present, args.verb, exclude_phrase
-        ):
+        elif args.verb and not verb_token_present:
             (
                 excluded_verbs,
                 exclude_phrase,
@@ -754,25 +746,61 @@ def main() -> None:
 
     total = len(sentences)
     statistics = [
-        "línies inici: " + str(total_lines),
-        "frases inici: " + str(total),
-        describe("excloses mida:", excluded_sentences_improper_length, total),
-        describe("excloses caracter:", excluded_characters, total),
-        describe("excloses sigles:", excluded_acronyms, total),
-        describe("excloses paraules:", excluded_words, total),
-        describe("excloses ortografia:", excluded_spellings, total),
-        describe("excloses proporció:", excluded_ratios, total),
-        describe("excloses hores:", excluded_hours, total),
-        describe("excloses paraules repetides:", excluded_repeated_words, total),
-        describe("excloses noms:", excluded_names, total),
-        describe("seleccionades repetides:", selected_phrases_repeated, total),
-        describe("seleccionades:", selected_phrases, total),
-        describe("abreviatures:", excluded_abbreviations, total),
-        describe("possibles trencades:", possible_breaks, total),
-        describe("comença amb min:", excluded_lowercase, total),
-        describe("conté una xifra:", excluded_nums, total),
-        describe("excloses verb:", excluded_verbs, total),
-        describe("error num:", error_num, total),
+        "Number of initial lines: " + str(total_lines),
+        "Number of initial phrases: " + str(total),
+        describe(
+            "Sentences excluded due to improper length:",
+            excluded_sentences_improper_length,
+            total,
+        ),
+        describe(
+            "Sentences excluded due to excluded characters:", excluded_characters, total
+        ),
+        describe("Sentences excluded due to acronyms:", excluded_acronyms, total),
+        describe("Sentences excluded due to excluded words:", excluded_words, total),
+        describe(
+            "Sentences excluded due to excluded spellings:", excluded_spellings, total
+        ),
+        describe(
+            "Sentences excluded due to incorrect ratio of proper nouns:",
+            excluded_ratios,
+            total,
+        ),
+        describe(
+            "Sentences excluded because they contain hours:", excluded_hours, total
+        ),
+        describe(
+            "Sentences excluded due to repeated excluded words:",
+            excluded_repeated_words,
+            total,
+        ),
+        describe("Sentences excluded due to proper nouns:", excluded_names, total),
+        describe("Repeated selected phrases:", selected_phrases_repeated, total),
+        describe("Selected phrases:", selected_phrases, total),
+        describe(
+            "Sentences excluded because they contain abbreviations:",
+            excluded_abbreviations,
+            total,
+        ),
+        describe(
+            "Sentences excluded because they contain possible breaks:",
+            possible_breaks,
+            total,
+        ),
+        describe(
+            "Sentences excluded because they start with a lowercase letter:",
+            excluded_lowercase,
+            total,
+        ),
+        describe(
+            "Sentences excluded because they contain numbers:", excluded_nums, total
+        ),
+        describe(
+            "Sentences excluded because they don't contain verbs:",
+            excluded_verbs,
+            total,
+        ),
+        describe("Errors from transcribing numbers:", error_num, total),
     ]
     for line in statistics:
         print(line)
@@ -799,32 +827,32 @@ def main() -> None:
         selected_phrases_orig,
     ]
     all_exclusion_list_files = [
-        "estadistiques_filtre.txt",
-        "frases_seleccionades.txt",
-        "excloses_mida.txt",
-        "excloses_caracter.txt",
-        "excloses_sigles.txt",
-        "excloses_paraula.txt",
-        "excloses_ortografia.txt",
-        "excloses_proporcio.txt",
-        "excloses_hores.txt",
-        "excloses_paraules_repetides.txt",
-        "excloses_nom.txt",
-        "frases_seleccionades_repetides.txt",
-        "error_num.txt",
-        "possibles_trencades.txt",
-        "excloses_abreviatura.txt",
-        "excloses_minuscula.txt",
-        "excloses_num.txt",
-        "excloses_verb.txt",
-        "frases_seleccionades_originals.txt",
+        "filter_statistics.txt",
+        "selected_phrases.txt",
+        "excluded_improper_length.txt",
+        "excluded_characters.txt",
+        "excluded_acronyms.txt",
+        "excluded_words.txt",
+        "excluded_spelling.txt",
+        "excluded_proportion_of_proper_nouns.txt",
+        "excluded_hours.txt",
+        "excluded_repeated_words.txt",
+        "excluded_names.txt",
+        "selected_repeated_phrases.txt",
+        "number_transcription_errors.txt",
+        "excluded_possible_breaks.txt",
+        "excluded_abbreviations.txt",
+        "excluded_lowercase.txt",
+        "excluded_numbers.txt",
+        "excluded_verbs.txt",
+        "selected_original_phrases.txt",
     ]
     for exclusion_list, file in zip(all_exclusion_lists, all_exclusion_list_files):
         create_file(output_dir, filter_file_name, file, exclusion_list)
 
     case_studies_files = [
-        output_dir / f"{filter_file_name}_estudi_cas_filtre.tsv",
-        output_dir / f"{filter_file_name}_estudi_cas_ortografia.tsv",
+        output_dir / f"{filter_file_name}_filter_case_study.tsv",
+        output_dir / f"{filter_file_name}_spelling_case_study.tsv",
     ]
     all_case_studies = [case_studies, spelling_case_studies]
 
